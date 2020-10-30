@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<launch>
+
+  <env name="ROSCONSOLE_CONFIG_FILE" value="$(find liodom)/config/logging.conf" />
+
+  <node pkg="liodom"
+        type="liodom_node"
+        name="liodom"
+        output="screen"
+        respawn="false">
+
+    <param name="min_range" type="double" value="3.0" />
+    <param name="max_range" type="double" value="25.0" />
+    <param name="lidar_type" type="int" value="0" />
+    <param name="scan_lines" type="int" value="64" />
+    <param name="scan_regions" type="int" value="8" />
+    <param name="edges_per_region" type="int" value="10" />
+    
+    <remap from="~points" to="/kitti/velo/pointcloud" />
+
+  </node>
+
+</launch>
