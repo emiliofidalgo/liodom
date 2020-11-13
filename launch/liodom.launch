@@ -10,7 +10,7 @@
         respawn="false">
 
     <param name="min_range" type="double" value="3.0" />
-    <param name="max_range" type="double" value="25.0" />
+    <param name="max_range" type="double" value="90.0" />
     <param name="lidar_type" type="int" value="0" />
     <param name="scan_lines" type="int" value="64" />
     <param name="scan_regions" type="int" value="8" />

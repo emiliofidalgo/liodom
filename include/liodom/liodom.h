@@ -23,9 +23,14 @@
 // C++
 #include <chrono>
 #include <iostream>
+#include <utility>
+
+// Ceres
+#include <ceres/ceres.h>
 
 // Eigen
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 // ROS
 #include <ros/ros.h>
@@ -43,6 +48,9 @@
 #include <pcl/point_types.h>
 #include <pcl/search/search.h>
 
+// Liodom
+#include <liodom/factors.hpp>
+
 namespace liodom {
 
 // PCL typedefs
@@ -53,6 +61,9 @@ typedef pcl::PointCloud<pcl::FPFHSignature33> PointCloudFPFH;
 
 // Chrono typedefs
 typedef std::chrono::high_resolution_clock Clock;
+
+// Matchings
+typedef std::pair<Eigen::Vector3d, Eigen::Vector3d> Match;
 
 // Smoothness
 struct SmoothnessItem {
@@ -86,6 +97,7 @@ class LidarOdometry {
   ros::NodeHandle nh_;
   ros::Subscriber pc_subs_;
   ros::Publisher pc_edges_pub_;
+  ros::Publisher laser_odom_pub_;
 
   // Params
   double min_range_;
@@ -99,9 +111,13 @@ class LidarOdometry {
   // Global variables
   bool init_;
   bool picked_[400000];
-  Eigen::Matrix4f prev_odom_;
-  Eigen::Matrix4f odom_;
+  Eigen::Isometry3d prev_odom_;
+  Eigen::Isometry3d odom_;
   std::vector<PointCloud::Ptr> prev_edges_;
+  double param_q[4] = {0, 0, 0, 1};
+  double param_t[3] = {0, 0, 0};
+  Eigen::Map<Eigen::Quaterniond> q_curr;
+  Eigen::Map<Eigen::Vector3d> t_curr;
   
   // Private methods
   void filter(const PointCloud::Ptr& pc_in, PointCloud::Ptr& pc_out);

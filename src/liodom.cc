@@ -31,8 +31,10 @@ LidarOdometry::LidarOdometry(const ros::NodeHandle& nh) :
   edges_per_region_(10),
   min_points_per_scan_(scan_regions_ * edges_per_region_ + 10),
   init_(false),
-  prev_odom_(Eigen::Matrix4f::Identity()),
-  odom_(Eigen::Matrix4f::Identity()) {
+  prev_odom_(Eigen::Isometry3d::Identity()),
+  odom_(Eigen::Isometry3d::Identity()),
+  q_curr(param_q),
+  t_curr(param_t) {
 }
 
 LidarOdometry::~LidarOdometry() {
@@ -69,6 +71,7 @@ void LidarOdometry::initialize() {
 
   // Publishers
   pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 1000);
+  laser_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("odom", 1000);
 
   // Subscribers
   pc_subs_ = nh_.subscribe("points", 1000, &LidarOdometry::lidarClb, this);
@@ -398,7 +401,6 @@ void LidarOdometry::estimatePose(const PointCloud::Ptr& pc_in, const PointCloud:
     prev_edges_.push_back(pc_edges);
     init_ = true;
   } else {
-
     // Computing local map    
     PointCloud::Ptr total_points(new PointCloud);
     for (size_t i = 0; i < prev_edges_.size(); i++) {
@@ -409,43 +411,144 @@ void LidarOdometry::estimatePose(const PointCloud::Ptr& pc_in, const PointCloud:
 
     PointCloud::Ptr local_map(new PointCloud);
     if (prev_edges_.size() == 5) {
+      // Voxelize the points
       pcl::VoxelGrid<Point> voxel_filter;
       voxel_filter.setLeafSize(0.15, 0.15, 0.15);
-      voxel_filter.setInputCloud(total_points);      
+      voxel_filter.setInputCloud(total_points);
       voxel_filter.filter(*local_map);
     } else {
       local_map = total_points;
     }
     ROS_DEBUG("Local Map points: %lu", local_map->size());
 
+    // Creating a tree to search for correspondences
+    pcl::KdTreeFLANN<Point>::Ptr tree(new pcl::KdTreeFLANN<Point>);
+    tree->setInputCloud(local_map);
+
     // Predict the current pose
-    Eigen::Matrix4f pred_odom = odom_ * (prev_odom_.inverse() * odom_);
+    Eigen::Isometry3d pred_odom = odom_ * (prev_odom_.inverse() * odom_);
     prev_odom_ = odom_;
     odom_ = pred_odom;
+    q_curr = Eigen::Quaterniond(odom_.rotation());
+    t_curr = odom_.translation();
 
-    // Transform the current edges to the map
+    // Translated edges
     PointCloud::Ptr pc_edges_w(new PointCloud);
-    pcl::transformPointCloud(*pc_edges, *pc_edges_w, odom_);
 
-    // Searching for correspondences
-    pcl::KdTreeFLANN<Point>::Ptr tree(new pcl::KdTreeFLANN<Point>);
-    tree->setInputCloud(local_map); 
+    // We perform a short ICP algorithm assuming small movement
+    for (int optim_it = 0; optim_it < 2; optim_it++) {
 
-    // TODO Computing correspondences and estimate pose
-    for (size_t i = 0; i < pc_edges_w->points.size(); i++) {
-      std::vector<int> indices;
-      std::vector<float> sq_dist;
-      int n_neighs = tree->nearestKSearch(pc_edges_w->points[i], 1, indices, sq_dist);
-      if (n_neighs && sq_dist[0] < 0.5) {
+      // Transform the current edges to the map according to the current pose
+      pc_edges_w->clear();
+      pcl::transformPointCloud(*pc_edges, *pc_edges_w, odom_.matrix());
 
+      // Compute edge correspondences
+      // std::vector<Match> matchings;
+      std::vector<std::vector<Eigen::Vector3d>> matchings;
+      for (size_t i = 0; i < pc_edges_w->points.size(); i++) {
+        std::vector<int> indices;
+        std::vector<float> sq_dist;
+        tree->nearestKSearch(pc_edges_w->points[i], 5, indices, sq_dist);
+        if (sq_dist[4] < 1.0) {
+          // Computing the center of mass
+          // Eigen::Vector3d center(0, 0, 0);
+          // for (int j = 0; j < 5; j++) {
+          //   Eigen::Vector3d tmp(local_map->points[indices[j]].x,
+          //                       local_map->points[indices[j]].y,
+          //                       local_map->points[indices[j]].z);
+          //   center = center + tmp;
+          // }
+          // center = center / 5.0;
+
+          // // Creating a match between the current point and the center of mass
+          // Eigen::Vector3d curr_point(pc_edges_w->points[i].x,
+          //                            pc_edges_w->points[i].y,
+          //                            pc_edges_w->points[i].z);
+          // Match m = std::make_pair(curr_point, center);
+          // matchings.push_back(m);
+
+          std::vector<Eigen::Vector3d> match;
+          Eigen::Vector3d curr_point(pc_edges_w->points[i].x,
+                                     pc_edges_w->points[i].y,
+                                     pc_edges_w->points[i].z);
+          match.push_back(curr_point);
+
+          Eigen::Vector3d pta(local_map->points[indices[0]].x,
+                              local_map->points[indices[0]].y,
+                              local_map->points[indices[0]].z);
+          match.push_back(pta);
+
+          Eigen::Vector3d ptb(local_map->points[indices[1]].x,
+                              local_map->points[indices[1]].y,
+                              local_map->points[indices[1]].z);
+          match.push_back(ptb);
+
+          matchings.push_back(match);
+        }
       }
+
+      ROS_DEBUG("Matchings: %lu", matchings.size());
+
+      // Optimizing the current pose
+      ceres::LossFunction* loss_function = new ceres::HuberLoss(0.1);
+      ceres::LocalParameterization* q_parameterization = new ceres::EigenQuaternionParameterization();
+      ceres::Problem::Options problem_options;
+      ceres::Problem problem(problem_options);
+      problem.AddParameterBlock(param_q, 4, q_parameterization);
+      problem.AddParameterBlock(param_t, 3);
+
+      // Adding constraints
+      for (size_t j = 0; j < matchings.size(); j++) {
+        // ceres::CostFunction* cost_function = Point2PointFactor::create(matchings[j].first, matchings[j].second);
+        ceres::CostFunction* cost_function = Point2LineFactor::create(matchings[j][0], matchings[j][1], matchings[j][2]);
+        problem.AddResidualBlock(cost_function, loss_function, param_q, param_t);
+      }
+
+      // Solving the optimization problem
+      ceres::Solver::Options options;
+      options.linear_solver_type = ceres::DENSE_QR;
+      options.max_num_iterations = 5;
+      options.minimizer_progress_to_stdout = false;
+      options.num_threads = sysconf( _SC_NPROCESSORS_ONLN );
+      options.num_linear_solver_threads = sysconf( _SC_NPROCESSORS_ONLN );
+      // options.initial_trust_region_radius = 1e14;
+      // options.gradient_check_relative_precision = 1e-4;
+      ceres::Solver::Summary summary;
+      ceres::Solve(options, &problem, &summary);
+
+      std::cout << summary.BriefReport() << "\n";
+
+      odom_ = Eigen::Isometry3d::Identity();
+      odom_.linear() = q_curr.toRotationMatrix();
+      odom_.translation() = t_curr;
     }
 
-    // TODO Move edges using the updated pose
+    // Compute the position of the detectd edges according to the final estimate position
+    pc_edges_w->clear();
+    pcl::transformPointCloud(*pc_edges, *pc_edges_w, odom_.matrix());
+
+    // Move edges using the updated pose
     prev_edges_.push_back(pc_edges_w);
     if (prev_edges_.size() > 5) {
       prev_edges_.erase(prev_edges_.begin());
-    }    
+    }
+
+    // Publishing odometry
+    Eigen::Quaterniond q_current(odom_.rotation());
+    Eigen::Vector3d t_current = odom_.translation();
+
+    nav_msgs::Odometry laser_odom_msg;
+    laser_odom_msg.header.frame_id = "world";
+    laser_odom_msg.child_frame_id = "base_link";
+    laser_odom_msg.header.stamp = ros::Time::now();
+    laser_odom_msg.pose.pose.orientation.x = q_current.x();
+    laser_odom_msg.pose.pose.orientation.y = q_current.y();
+    laser_odom_msg.pose.pose.orientation.z = q_current.z();
+    laser_odom_msg.pose.pose.orientation.w = q_current.w();
+    laser_odom_msg.pose.pose.position.x = t_current.x();
+    laser_odom_msg.pose.pose.position.y = t_current.y();
+    laser_odom_msg.pose.pose.position.z = t_current.z();
+    laser_odom_pub_.publish(laser_odom_msg);
   }  
 }
 
