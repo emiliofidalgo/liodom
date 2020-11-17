@@ -20,16 +20,12 @@ endif()
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
 if(COMPILER_SUPPORTS_CXX14)
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
    message(STATUS "Using flag -std=c++14")
 elseif(COMPILER_SUPPORTS_CXX11)
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
    message(STATUS "Using flag -std=c++11")
-elseif(COMPILER_SUPPORTS_CXX0X)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-   message(STATUS "Using flag -std=c++0x")
 else()
    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++14/11/0x support.
                         Please use a different C++ compiler.")
@@ -76,7 +72,9 @@ include_directories(
 
 #### Laser Odometry
 add_library(liodom
-            src/liodom.cc)
+            src/shared_data.cc
+            src/feature_extractor.cc
+            src/laser_odometry.cc)
 target_link_libraries(liodom
                       ${catkin_LIBRARIES}
                       ${PCL_LIBRARIES}

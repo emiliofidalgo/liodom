@@ -10,11 +10,12 @@
         respawn="false">
 
     <param name="min_range" type="double" value="3.0" />
-    <param name="max_range" type="double" value="90.0" />
+    <param name="max_range" type="double" value="75.0" />
     <param name="lidar_type" type="int" value="0" />
     <param name="scan_lines" type="int" value="64" />
     <param name="scan_regions" type="int" value="8" />
     <param name="edges_per_region" type="int" value="10" />
+    <param name="prev_frames" type="int" value="10" />
     
     <remap from="~points" to="/kitti/velo/pointcloud" />
 

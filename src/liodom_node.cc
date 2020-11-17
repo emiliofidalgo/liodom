@@ -17,15 +17,65 @@
 * along with liodom. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "liodom/liodom.h"
+// C++
+#include <atomic>
+
+// ROS
+#include <ros/ros.h>
+#include <sensor_msgs/PointCloud2.h>
+
+// Liodom
+#include <liodom/defs.h>
+#include <liodom/feature_extractor.h>
+#include <liodom/laser_odometry.h>
+#include <liodom/shared_data.h>
+
+liodom::SharedData* sdata;
+
+void lidarClb(const sensor_msgs::PointCloud2ConstPtr& lidar_msg) {
+  
+  // Converting ROS message to PCL
+  liodom::PointCloud::Ptr pc_new(new liodom::PointCloud);
+  pcl::fromROSMsg(*lidar_msg, *pc_new);
+  
+  ROS_DEBUG("---");
+  ROS_DEBUG("Initial cloud: %lu points", pc_new->points.size());
+
+  sdata->pushPointCloud(pc_new, lidar_msg->header);
+}
 
 int main(int argc, char** argv) {
+  
+  // Initializing node
   ros::init (argc, argv, "liodom");
   ros::NodeHandle nh("~");
 
-  liodom::LidarOdometry lodom(nh);
+  Eigen::initParallel();
+
+  // Creating threads
+  liodom::FeatureExtractor fext(nh);
+  fext.initialize();
+  liodom::LaserOdometer lodom(nh);
   lodom.initialize();
 
+  // Launching threads
+  std::atomic<bool> running {true};
+  std::thread fext_thread(fext, std::ref(running));
+  std::thread lodom_thread(lodom, std::ref(running));
+
+  // Shared stuff
+  sdata = liodom::SharedData::getInstance();
+
+  // Subscribers  
+  ros::Subscriber pc_subs_ = nh.subscribe("points", 1000, lidarClb);
+
+  // Receiving messages
   ros::spin();
+
+  // Exit gracefully
+  running = false;
+  fext_thread.join();
+  lodom_thread.join();
+  
   return 0;
 }

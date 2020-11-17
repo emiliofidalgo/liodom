@@ -11,16 +11,10 @@
 
 A desarrollar:
 
-- Optimización Point to Point (fácil, usarlo en base al paper JP Deep).
-- Mover los puntos del frame actual de acuerdo a la T corregida.
-- Separar en threads cada proceso.
-- Calcular las correspondencias contra un mapa local (ya montado, Voxel map).
 - Para calcular correspondencias:
 -- Point to Point (con el centroide, como FLOAM, 5 neighs), optimización Point to Point.
 -- Point to Line (como lo hace FLOAM (ver paper de Livox)). Optim. Point to Line, optimización de A-LOAM.
-- Limitar las optimizaciones a 2 (4 iteraciones). Otros factores?
-- Trabajar inicialmente con edges y, posteriormente, si eso añadir surfaces,
-  pero limitados (como hace LOAM).
+- Trabajar inicialmente con edges y, posteriormente, si eso añadir surfaces, pero limitados (como hace LOAM).
 - Asegurar que funciona a 10Hz.
 - Desarrollar el código necesario para hacerlo funcionar con el Ouster.
 - Validar la odometría del Ouster en contraste con hacerlo sobre FLOAM.
