@@ -33,6 +33,8 @@
 // ROS
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_broadcaster.h>
 
 // PCL
 #include <pcl/common/transforms.h>

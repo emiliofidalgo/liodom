@@ -205,10 +205,11 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         Eigen::Quaterniond q_current(odom_.rotation());
         Eigen::Vector3d t_current = odom_.translation();
 
+        ros::Time now = ros::Time::now();
         nav_msgs::Odometry laser_odom_msg;
         laser_odom_msg.header.frame_id = "world";
         laser_odom_msg.child_frame_id = "base_link";
-        laser_odom_msg.header.stamp = ros::Time::now();
+        laser_odom_msg.header.stamp = now;
         laser_odom_msg.pose.pose.orientation.x = q_current.x();
         laser_odom_msg.pose.pose.orientation.y = q_current.y();
         laser_odom_msg.pose.pose.orientation.z = q_current.z();
@@ -217,6 +218,14 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         laser_odom_msg.pose.pose.position.y = t_current.y();
         laser_odom_msg.pose.pose.position.z = t_current.z();
         odom_pub_.publish(laser_odom_msg);
+
+        //Publishing TF
+        // static tf::TransformBroadcaster br;
+        // tf::Transform transform;
+        // transform.setOrigin( tf::Vector3(t_current.x(), t_current.y(), t_current.z()));
+        // tf::Quaternion q(q_current.x(), q_current.y(), q_current.z(), q_current.w());
+        // transform.setRotation(q);
+        // br.sendTransform(tf::StampedTransform(transform, now, "world", "base_link"));
       }
     } 
 

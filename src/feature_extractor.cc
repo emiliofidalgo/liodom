@@ -199,6 +199,24 @@ void FeatureExtractor::splitPointCloud(const PointCloud::Ptr& pc_in, std::vector
         scans[scan_id]->push_back(pc_in->points[i]);
       }      
     }
+  } else if (lidar_type_ == 1) { // Ouster
+    // Assigning each point to its corresponding scan line
+    for (size_t row = 0; row < pc_in->height; row++) {
+      for (size_t col = 0; col < pc_in->width; col++) {
+        double x = pc_in->at(col, row).x;
+        double y = pc_in->at(col, row).y;
+        double z = pc_in->at(col, row).z;
+        
+        // Check if the point is valid
+        double distance;
+        if (!isValidPoint(x, y, z, &distance)) {
+          continue;
+        }
+
+        // Adding the point to the corresponding scan        
+        scans[row]->push_back(pc_in->at(col, row));
+      }
+    }
   } else {
     ROS_ERROR_ONCE("Incorrect Lidar type");
   }
