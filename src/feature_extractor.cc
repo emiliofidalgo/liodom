@@ -32,8 +32,14 @@ FeatureExtractor::FeatureExtractor(const ros::NodeHandle& nh) :
   min_points_per_scan_(scan_regions_ * edges_per_region_ + 10),
   save_results_(false),
   sdata(SharedData::getInstance()),
-  stats(Stats::getInstance())
+  stats(Stats::getInstance()),
+  ncores_(2)
   {
+    // Updating the available number of cores for processing
+    int max_ncores = omp_get_max_threads() - 5;
+    if (max_ncores > 1) {
+      ncores_ = max_ncores;
+    }
 }
 
 FeatureExtractor::~FeatureExtractor() {  
@@ -165,17 +171,7 @@ void FeatureExtractor::splitPointCloud(const PointCloud::Ptr& pc_in, std::vector
       int scan_id = -1;
       double angle = atan(z / distance) * 180 / M_PI;
 
-      if (scan_lines_ == 16) {
-        scan_id = int((angle + 15) / 2 + 0.5);
-        if (scan_id > (scan_lines_ - 1) || scan_id < 0) {
-          continue;
-        }
-      } else if (scan_lines_ == 32) {
-        scan_id = int((angle + 92.0 / 3.0) * 3.0 / 4.0);
-        if (scan_id > (scan_lines_ - 1) || scan_id < 0) {
-          continue;
-        }
-      } else if (scan_lines_ == 64) {
+      if (scan_lines_ == 64) {
         if (angle >= -8.83)
           scan_id = int((2 - angle) * 3.0 + 0.5);
         else
@@ -183,7 +179,17 @@ void FeatureExtractor::splitPointCloud(const PointCloud::Ptr& pc_in, std::vector
 
         if (angle > 2 || angle < -24.33 || scan_id > 63 || scan_id < 0) {
           continue;
-        }              
+        }        
+      } else if (scan_lines_ == 32) {
+        scan_id = int((angle + 92.0 / 3.0) * 3.0 / 4.0);
+        if (scan_id > (scan_lines_ - 1) || scan_id < 0) {
+          continue;
+        }
+      } else if (scan_lines_ == 16) {
+        scan_id = int((angle + 15) / 2 + 0.5);
+        if (scan_id > (scan_lines_ - 1) || scan_id < 0) {
+          continue;
+        }                      
       } else {
         ROS_ERROR_ONCE("Invalid scan lines: %i", scan_lines_);
       }
@@ -210,7 +216,8 @@ void FeatureExtractor::extractFeatures(const std::vector<PointCloud::Ptr>& scans
     }
 
     // Compute the smoothness of each point in the scan
-    std::vector<SmoothnessItem> smooths;
+    std::vector<SmoothnessItem> smooths_aux(scans[i]->points.size(), SmoothnessItem());
+    #pragma omp parallel for num_threads(ncores_)
     for(size_t j = 5; j < scans[i]->points.size() - 5; j++) {
       double diff_x = scans[i]->points[j - 5].x + 
                       scans[i]->points[j - 4].x + 
@@ -247,8 +254,11 @@ void FeatureExtractor::extractFeatures(const std::vector<PointCloud::Ptr>& scans
                       scans[i]->points[j + 5].z;
       SmoothnessItem item(j, diff_x * diff_x + diff_y * diff_y + diff_z * diff_z);
       picked_[j] = false;
-      smooths.push_back(item);
-    }    
+      smooths_aux[j] = item;
+    }
+
+    // Extracting subvector
+    std::vector<SmoothnessItem> smooths = {smooths_aux.begin() + 5, smooths_aux.end() - 5};
 
     // Extractg edges from each region
     int total_points = scans[i]->points.size() - 10;

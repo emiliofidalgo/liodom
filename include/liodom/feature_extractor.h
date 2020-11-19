@@ -23,6 +23,7 @@
 // C++
 #include <atomic>
 #include <chrono>
+#include <omp.h>
 #include <thread>
 
 // PCL
@@ -84,6 +85,7 @@ class FeatureExtractor {
     bool picked_[400000];
     SharedData* sdata;
     Stats* stats;
+    int ncores_;
 
     bool isValidPoint(const double x, const double y, const double z, double* dist);
     void splitPointCloud(const PointCloud::Ptr& pc_in, std::vector<PointCloud::Ptr>& scans);
