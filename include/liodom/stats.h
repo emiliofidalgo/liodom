@@ -17,49 +17,51 @@
 * along with liodom. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef INCLUDE_LIODOM_SHARED_DATA_H
-#define INCLUDE_LIODOM_SHARED_DATA_H
+#ifndef INCLUDE_LIODOM_STATS_H
+#define INCLUDE_LIODOM_STATS_H
 
-#include <queue>
+#include <fstream>
+#include <iostream>
 #include <mutex>
+#include <sstream>
+#include <string>
+#include <vector>
 
-#include <ros/ros.h>
-#include <std_msgs/Header.h>
+#include <Eigen/Dense>
 
 #include <liodom/defs.h>
+
+#define SSTR( x ) dynamic_cast< std::ostringstream & >( \
+        ( std::ostringstream() << std::dec << x ) ).str()
 
 namespace liodom {
 
 // Singleton class to manage shared data
-class SharedData {
+class Stats {
   public:
-    static SharedData* getInstance();
-    SharedData(SharedData const&) = delete;
-    void operator=(SharedData const&) = delete;
+    static Stats* getInstance();
+    Stats(Stats const&) = delete;
+    void operator=(Stats const&) = delete;
 
-    void pushPointCloud(const PointCloud::Ptr& pc_in, const std_msgs::Header& header);
-    bool popPointCloud(PointCloud::Ptr& pc_out, std_msgs::Header& header);
-
-    void pushFeatures(const PointCloud::Ptr& feat_in);
-    bool popFeatures(PointCloud::Ptr& feat_out);
+    // Public methods
+    void addPose(const Eigen::Matrix4d& pose);
+    void addFeatureExtractionTime(const Clock::time_point& start, const Clock::time_point& end);
+    void addLaserOdometryTime(const Clock::time_point& start, const Clock::time_point& end);
+    void writeResults(const std::string& dir);
 
   private:
     // Controlling the singleton
-    static SharedData* pinstance_;
+    static Stats* pinstance_;   
     static std::mutex sdata_mutex_;
 
-    // PointCloud control
-    std::mutex pc_mutex_;
-    std::queue<PointCloud::Ptr> pc_buf_;
-    std::queue<std_msgs::Header> pc_header_;
-
-    // Feature control
-    std::mutex feat_mutex_;
-    std::queue<PointCloud::Ptr> feat_buf_;
+    // Members
+    std::vector<Eigen::Matrix4d> poses_;
+    std::vector<double> feat_extr_;
+    std::vector<double> laser_odom_;
 
   protected:
-    SharedData() {};
-    ~SharedData() {
+    Stats() {};
+    ~Stats() {
       if (pinstance_ != nullptr) {
         delete pinstance_;
       }
@@ -68,4 +70,4 @@ class SharedData {
 
 } // namespace liodom
 
-#endif // INCLUDE_LIODOM_SHARED_DATA_H
+#endif // INCLUDE_LIODOM_STATS_H

@@ -24,13 +24,15 @@ namespace liodom {
 FeatureExtractor::FeatureExtractor(const ros::NodeHandle& nh) :
   nh_(nh),
   min_range_(3.0),
-  max_range_(90.0),
+  max_range_(75.0),
   lidar_type_(0),
   scan_lines_(64),
   scan_regions_(8),
   edges_per_region_(10),
   min_points_per_scan_(scan_regions_ * edges_per_region_ + 10),
-  sdata(SharedData::getInstance())
+  save_results_(false),
+  sdata(SharedData::getInstance()),
+  stats(Stats::getInstance())
   {
 }
 
@@ -45,7 +47,7 @@ void FeatureExtractor::initialize() {
   ROS_INFO("Minimum range: %.2f", min_range_);
 
   // Maximum range in meters
-  nh_.param("max_range", max_range_, 90.0);
+  nh_.param("max_range", max_range_, 75.0);
   ROS_INFO("Maximum range: %.2f", max_range_);
 
   // Lidar model: 0 for Velodyne, 1 for Ouster
@@ -66,6 +68,10 @@ void FeatureExtractor::initialize() {
 
   min_points_per_scan_ = scan_regions_ * edges_per_region_ + 10;
 
+  // Save results
+  nh_.param("save_results", save_results_, false);
+  ROS_INFO("Save results: %s", save_results_ ? "Yes" : "No");
+
   // Publishers
   pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
 }
@@ -78,6 +84,9 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
     std_msgs::Header pc_header;
     
     if (sdata->popPointCloud(pc_curr, pc_header)) {
+
+      auto start_t = Clock::now();
+
       // Split the pointcloud into scan_lines_ scans
       std::vector<PointCloud::Ptr> scans;
       splitPointCloud(pc_curr, scans);
@@ -85,7 +94,14 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
       // Extracting features from each scan
       PointCloud::Ptr pc_edges(new PointCloud);
       extractFeatures(scans, pc_edges);
+      auto end_t = Clock::now();
+
       ROS_DEBUG("Feature extraction: %lu edges", pc_edges->points.size());
+
+      // Register stats
+      if (save_results_) {
+        stats->addFeatureExtractionTime(start_t, end_t);
+      }
 
       // Send extracted features for laser odometry
       sdata->pushFeatures(pc_edges);
@@ -99,7 +115,7 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
       }
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
 }
 

@@ -73,6 +73,7 @@ include_directories(
 #### Laser Odometry
 add_library(liodom
             src/shared_data.cc
+            src/stats.cc
             src/feature_extractor.cc
             src/laser_odometry.cc)
 target_link_libraries(liodom

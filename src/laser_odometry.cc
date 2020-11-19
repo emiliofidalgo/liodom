@@ -24,12 +24,15 @@ namespace liodom {
 LaserOdometer::LaserOdometer(const ros::NodeHandle& nh) :
   nh_(nh),
   prev_frames_(5),
+  save_results_(false),
+  results_dir_("~/"),
   init_(false),
   prev_odom_(Eigen::Isometry3d::Identity()),
   odom_(Eigen::Isometry3d::Identity()),
   // q_curr(param_q),
   // t_curr(param_t),
-  sdata(SharedData::getInstance()) {
+  sdata(SharedData::getInstance()),
+  stats(Stats::getInstance()) {
 }
 
 LaserOdometer::~LaserOdometer() {
@@ -38,6 +41,13 @@ LaserOdometer::~LaserOdometer() {
 void LaserOdometer::initialize() {
   
   // Reading parameters
+  // Save results
+  nh_.param("save_results", save_results_, false);
+
+  // Results directory
+  nh_.param<std::string>("save_results_dir", results_dir_, "~/");
+  ROS_INFO("Results directory: %s", results_dir_.c_str());
+
   // Number of previous frames to create a local map
   int pframes = 5;
   nh_.param("prev_frames", pframes, 5);  
@@ -58,7 +68,15 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
       if (!init_) {
         prev_edges_.push_back(feats);
         init_ = true;
+
+        // Register stats
+        if (save_results_) {
+          stats->addPose(odom_.matrix());
+        }
       } else {
+
+        auto start_t = Clock::now();
+
         // Computing local map
         PointCloud::Ptr local_map(new PointCloud);
         computeLocalMap(local_map);
@@ -109,7 +127,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
           ceres::Solver::Summary summary;
           ceres::Solve(options, &problem, &summary);
           
-          std::cout << summary.BriefReport() << "\n";
+          // std::cout << summary.BriefReport() << "\n";
 
           odom_ = Eigen::Isometry3d::Identity();
           // odom_.linear() = q_curr.toRotationMatrix();
@@ -117,7 +135,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
           Eigen::Quaterniond q_new(param_q[3], param_q[0], param_q[1], param_q[2]);
           odom_.linear() = q_new.toRotationMatrix();
           odom_.translation() = Eigen::Vector3d(param_t[0], param_t[1], param_t[2]);
-        }
+        }        
 
         // Compute the position of the detectd edges according to the final estimate position
         PointCloud::Ptr edges_map(new PointCloud);
@@ -127,6 +145,14 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         prev_edges_.push_back(edges_map);
         if (prev_edges_.size() > prev_frames_) {
           prev_edges_.erase(prev_edges_.begin());
+        }
+
+        auto end_t = Clock::now();
+
+        // Register stats
+        if (save_results_) {
+          stats->addPose(odom_.matrix());
+          stats->addLaserOdometryTime(start_t, end_t);
         }
 
         // Publishing odometry
@@ -148,7 +174,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
       }
     } 
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
 }
 

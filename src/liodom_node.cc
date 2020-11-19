@@ -29,8 +29,10 @@
 #include <liodom/feature_extractor.h>
 #include <liodom/laser_odometry.h>
 #include <liodom/shared_data.h>
+#include <liodom/stats.h>
 
 liodom::SharedData* sdata;
+liodom::Stats* stats;
 
 void lidarClb(const sensor_msgs::PointCloud2ConstPtr& lidar_msg) {
   
@@ -50,6 +52,14 @@ int main(int argc, char** argv) {
   ros::init (argc, argv, "liodom");
   ros::NodeHandle nh("~");
 
+  // Reading common parameters
+  // Save results
+  bool save_results;
+  nh.param("save_results", save_results, false);
+  // Results directory
+  std::string results_dir;
+  nh.param<std::string>("save_results_dir", results_dir, "~/");
+
   Eigen::initParallel();
 
   // Creating threads
@@ -65,6 +75,7 @@ int main(int argc, char** argv) {
 
   // Shared stuff
   sdata = liodom::SharedData::getInstance();
+  stats = liodom::Stats::getInstance();
 
   // Subscribers  
   ros::Subscriber pc_subs_ = nh.subscribe("points", 1000, lidarClb);
@@ -76,6 +87,13 @@ int main(int argc, char** argv) {
   running = false;
   fext_thread.join();
   lodom_thread.join();
+
+  // Saving results if required
+  if (save_results) {
+    std::cout << "Writing results to ";
+    std::cout << results_dir.c_str() << std::endl;
+    stats->writeResults(results_dir);
+  }
   
   return 0;
 }

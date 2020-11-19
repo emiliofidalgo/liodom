@@ -47,6 +47,7 @@
 #include <liodom/defs.h>
 #include <liodom/factors.hpp>
 #include <liodom/shared_data.h>
+#include <liodom/stats.h>
 
 namespace liodom {
 
@@ -66,6 +67,8 @@ class LaserOdometer {
 
   // Params  
   size_t prev_frames_;
+  bool save_results_;
+  std::string results_dir_;
 
   // Variables
   bool init_;
@@ -77,6 +80,7 @@ class LaserOdometer {
   // Eigen::Map<Eigen::Quaterniond> q_curr;
   // Eigen::Map<Eigen::Vector3d> t_curr;
   SharedData* sdata;
+  Stats* stats;
 
   void computeLocalMap(PointCloud::Ptr& local_map);
   void addEdgeConstraints(const PointCloud::Ptr& edges,

@@ -34,6 +34,7 @@
 
 // Liodom
 #include <liodom/shared_data.h>
+#include <liodom/stats.h>
 
 namespace liodom {
 
@@ -77,10 +78,12 @@ class FeatureExtractor {
     int scan_regions_;
     int edges_per_region_;
     size_t min_points_per_scan_;
+    bool save_results_;
 
     // Variables
     bool picked_[400000];
     SharedData* sdata;
+    Stats* stats;
 
     bool isValidPoint(const double x, const double y, const double z, double* dist);
     void splitPointCloud(const PointCloud::Ptr& pc_in, std::vector<PointCloud::Ptr>& scans);
