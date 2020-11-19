@@ -20,6 +20,7 @@
 #ifndef INCLUDE_LIODOM_LASER_ODOMETRY_H
 #define INCLUDE_LIODOM_LASER_ODOMETRY_H
 
+#include <numeric>
 #include <thread>
 
 // Ceres
@@ -36,6 +37,7 @@
 // PCL
 #include <pcl/common/transforms.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/filters/extract_indices.h>
 #include <pcl/filters/filter.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
@@ -50,6 +52,23 @@
 #include <liodom/stats.h>
 
 namespace liodom {
+
+// Local Map manager
+class LocalMapManager {
+ public:
+  explicit LocalMapManager(const size_t max_frames);
+  virtual ~LocalMapManager();
+
+  void addPointCloud(const PointCloud::Ptr& pc);
+  size_t getLocalMap(PointCloud::Ptr& map);
+  void setMaxFrames(const size_t max_nframes);
+
+ private:
+  PointCloud::Ptr total_points_;
+  size_t nframes_;
+  size_t max_nframes_;
+  std::queue<size_t> sizes_;  
+};
 
 // Laser Odometry
 class LaserOdometer {
@@ -74,7 +93,7 @@ class LaserOdometer {
   bool init_;
   Eigen::Isometry3d prev_odom_;
   Eigen::Isometry3d odom_;
-  std::vector<PointCloud::Ptr> prev_edges_;
+  LocalMapManager lmap_manager;
   double param_q[4] = {0, 0, 0, 1};
   double param_t[3] = {0, 0, 0};
   // Eigen::Map<Eigen::Quaterniond> q_curr;

@@ -21,6 +21,53 @@
 
 namespace liodom {
 
+LocalMapManager::LocalMapManager(const size_t max_frames) : 
+  total_points_(new PointCloud),
+  nframes_(0),
+  max_nframes_(max_frames)
+  {
+}
+
+LocalMapManager::~LocalMapManager() {
+}
+
+void LocalMapManager::addPointCloud(const PointCloud::Ptr& pc) {
+  // Adding the current frame to the local map
+  *total_points_ += *pc;
+  nframes_++;
+  sizes_.push(pc->size());
+
+  // Removing frames at the beginning if required
+  if (nframes_ > max_nframes_) {
+    // Get the size of the first frame
+    size_t pc_size = sizes_.front();
+    sizes_.pop();
+
+    // Remove the points corresponding to the first frame
+    std::vector<int> ind(pc_size);
+    std::iota(std::begin(ind), std::end(ind), 0);
+    pcl::PointIndices::Ptr indices(new pcl::PointIndices);
+    indices->indices = ind;
+    pcl::ExtractIndices<Point> extract;
+    extract.setInputCloud(total_points_);
+    extract.setIndices(indices);
+    extract.setNegative(true);
+    extract.filter(*total_points_);
+
+    // Reducing the number of frames
+    nframes_--;
+  }
+}
+
+size_t LocalMapManager::getLocalMap(PointCloud::Ptr& map) {
+  map = total_points_;
+  return nframes_;
+}
+
+void LocalMapManager::setMaxFrames(const size_t max_nframes) {
+  max_nframes_ = max_nframes;
+}
+
 LaserOdometer::LaserOdometer(const ros::NodeHandle& nh) :
   nh_(nh),
   prev_frames_(5),
@@ -29,6 +76,7 @@ LaserOdometer::LaserOdometer(const ros::NodeHandle& nh) :
   init_(false),
   prev_odom_(Eigen::Isometry3d::Identity()),
   odom_(Eigen::Isometry3d::Identity()),
+  lmap_manager(prev_frames_),
   // q_curr(param_q),
   // t_curr(param_t),
   sdata(SharedData::getInstance()),
@@ -53,6 +101,7 @@ void LaserOdometer::initialize() {
   nh_.param("prev_frames", pframes, 5);  
   ROS_INFO("Previous frames: %i", pframes);
   prev_frames_ = (size_t)pframes;
+  lmap_manager.setMaxFrames(prev_frames_);
 
   // Publishers
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>("odom", 10);
@@ -66,7 +115,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
     
     if (sdata->popFeatures(feats)) {
       if (!init_) {
-        prev_edges_.push_back(feats);
+        lmap_manager.addPointCloud(feats);
         init_ = true;
 
         // Register stats
@@ -142,10 +191,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         pcl::transformPointCloud(*feats, *edges_map, odom_.matrix());
 
         // Save edges and update odometry window
-        prev_edges_.push_back(edges_map);
-        if (prev_edges_.size() > prev_frames_) {
-          prev_edges_.erase(prev_edges_.begin());
-        }
+        lmap_manager.addPointCloud(edges_map);
 
         auto end_t = Clock::now();
 
@@ -180,14 +226,12 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
 
 void LaserOdometer::computeLocalMap(PointCloud::Ptr& local_map) {
   
-  PointCloud::Ptr total_points(new PointCloud);
-  for (size_t i = 0; i < prev_edges_.size(); i++) {
-    *total_points += *(prev_edges_[i]);
-  }
+  PointCloud::Ptr total_points;
+  size_t nframes = lmap_manager.getLocalMap(total_points);
 
   ROS_DEBUG("Total points: %lu", total_points->size());
 
-  if (prev_edges_.size() == prev_frames_) {
+  if (nframes == prev_frames_) {
       // Voxelize the points
       pcl::VoxelGrid<Point> voxel_filter;
       voxel_filter.setLeafSize(0.15, 0.15, 0.15);
@@ -217,38 +261,43 @@ void LaserOdometer::addEdgeConstraints(const PointCloud::Ptr& edges,
     std::vector<float> sq_dist;
     tree->nearestKSearch(edges_map->points[i], 5, indices, sq_dist);
     if (sq_dist[4] < 1.0) {
-      // Set a correct match
-      correct_matches++;
-      Eigen::Vector3d curr_point(edges->points[i].x,
-                                 edges->points[i].y,
-                                 edges->points[i].z);
-      // // ### P2P constraint
-      // // Computing the center of mass
-      // Eigen::Vector3d center(0, 0, 0);
-      // for (int j = 0; j < 5; j++) {
-      //   Eigen::Vector3d tmp(local_map->points[indices[j]].x,
-      //                       local_map->points[indices[j]].y,
-      //                       local_map->points[indices[j]].z);
-      //   center = center + tmp;
-      // }
-      // center = center / 5.0;
+      std::vector<Eigen::Vector3d> nearCorners;
+      Eigen::Vector3d center(0, 0, 0);
+      for (int j = 0; j < 5; j++) {
+        Eigen::Vector3d tmp(local_map->points[indices[j]].x,
+                            local_map->points[indices[j]].y,
+                            local_map->points[indices[j]].z);
+        center = center + tmp;
+        nearCorners.push_back(tmp);
+      }
+      center = center / 5.0;
 
-      // ceres::CostFunction* cost_function = Point2PointFactor::create(curr_point, center);
-      // // ### ###
+      Eigen::Matrix3d covMat = Eigen::Matrix3d::Zero();
+      for (int j = 0; j < 5; j++) {
+        Eigen::Matrix<double, 3, 1> tmpZeroMean = nearCorners[j] - center;
+        covMat = covMat + tmpZeroMean * tmpZeroMean.transpose();
+      }
 
-      // ### P2L constraint
-      Eigen::Vector3d pt_a(local_map->points[indices[0]].x,
-                           local_map->points[indices[0]].y,
-                           local_map->points[indices[0]].z);
+      Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> saes(covMat);
       
-      Eigen::Vector3d pt_b(local_map->points[indices[1]].x,
-                           local_map->points[indices[1]].y,
-                           local_map->points[indices[1]].z);
+      if (saes.eigenvalues()[2] > 3 * saes.eigenvalues()[1]) {
+        // Set a correct match
+        correct_matches++;
+        Eigen::Vector3d curr_point(edges->points[i].x,
+                                   edges->points[i].y,
+                                   edges->points[i].z);
 
-      ceres::CostFunction* cost_function = Point2LineFactor::create(curr_point, pt_a, pt_b);
-      // ### ###
+        Eigen::Vector3d pt_a(local_map->points[indices[0]].x,
+                             local_map->points[indices[0]].y,
+                             local_map->points[indices[0]].z);
+      
+        Eigen::Vector3d pt_b(local_map->points[indices[1]].x,
+                             local_map->points[indices[1]].y,
+                             local_map->points[indices[1]].z);
 
-      problem->AddResidualBlock(cost_function, loss, param_q, param_t);
+        ceres::CostFunction* cost_function = Point2LineFactor::create(curr_point, pt_a, pt_b);
+        problem->AddResidualBlock(cost_function, loss, param_q, param_t);
+      }
     }
   }
 
