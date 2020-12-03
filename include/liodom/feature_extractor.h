@@ -28,6 +28,8 @@
 
 // PCL
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
+#include <pcl/search/search.h>
 
 // ROS
 #include <ros/ros.h>
@@ -37,7 +39,75 @@
 #include <liodom/shared_data.h>
 #include <liodom/stats.h>
 
+#include <boost/thread/thread.hpp>
+#include "pcl/io/pcd_io.h"
+#include "pcl/visualization/pcl_visualizer.h"
+#include <pcl/console/parse.h>
+
 namespace liodom {
+
+// Point stats
+struct PointInfo {
+
+  inline PointInfo() :
+    point_index(-1),
+    coords(0.0, 0.0, 0.0),
+    normal(0.0, 0.0, 0.0),
+    curvature(DBL_MAX),
+    scale(0.0),
+    valid(false) {};
+  
+  bool isValid() {
+    return valid;
+  }  
+
+  friend std::ostream& operator<<(std::ostream& os, const PointInfo& pi);
+
+  int point_index;
+  Eigen::Vector3d coords;
+  Eigen::Vector3d normal;
+  double curvature;
+  double scale;
+  bool valid;
+  std::vector<int> knns;
+};
+
+std::ostream& operator<<(std::ostream& os, const PointInfo& pi) {
+    return os << "Point " << pi.point_index << ": "
+              << "N(" << pi.normal << "), "
+              << "C(" << pi.curvature << "), "
+              << "S(" << pi.scale << ")" << std::endl;
+}
+
+// Plane
+struct Plane {
+
+  inline Plane() :
+    normal(0.0, 0.0, 0.0),
+    curvature(DBL_MAX),
+    scale(0.0) {};
+
+  void addPoint(const PointInfo& p) {
+    points.push_back(p);
+  }
+
+  size_t size() {
+    return points.size();
+  }
+
+  void computeStats();
+
+  friend std::ostream& operator<<(std::ostream& os, const Plane& p);
+
+  std::vector<PointInfo> points;
+  Eigen::Vector3d normal;
+  double curvature;
+  double scale; 
+};
+
+std::ostream& operator<<(std::ostream& os, const Plane& p) {
+    return os << "Plane with " << p.points.size() << " points";
+}
 
 // Smoothness
 struct SmoothnessItem {
@@ -91,6 +161,11 @@ class FeatureExtractor {
     void splitPointCloud(const PointCloud::Ptr& pc_in, std::vector<PointCloud::Ptr>& scans);
     void extractFeatures(const std::vector<PointCloud::Ptr>& scans, PointCloud::Ptr& pc_edges);
     void extractFeaturesFromRegion(const PointCloud::Ptr& pc_in, std::vector<SmoothnessItem>& smooths, PointCloud::Ptr& pc_edges);
+
+    void extractPlanes(const PointCloud::Ptr& pc_in, std::vector<Plane>& planes);
+    void computePointInfo(const PointCloud::Ptr& pc_in, std::vector<PointInfo>& point_info);
+    void regionGrowing(const std::vector<PointInfo>& point_info, std::vector<Plane>& planes);
+    void regionMerging(const std::vector<PointInfo>& point_info, const std::vector<Plane>& planes_in, std::vector<Plane>& planes_out);
 };
 
 }  // namespace liodom
