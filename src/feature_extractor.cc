@@ -106,6 +106,10 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
       // extractFeatures(scans, pc_edges);
 
       auto end_t = Clock::now();
+      double diff = std::chrono::duration_cast<std::chrono::milliseconds>(end_t - start_t).count();
+
+      ROS_DEBUG("Plane extraction %f", diff);
+
 
       // ROS_DEBUG("Feature extraction: %lu edges", pc_edges->points.size());
 
@@ -369,6 +373,7 @@ void Plane::computeStats() {
     P_mean = P_mean + points[i].coords;
   }
   P_mean /= double(points.size());
+  mean_point = P_mean;
 
   // Compute the covariance matrix
   Eigen::Matrix3d cov = Eigen::Matrix3d::Zero();
@@ -397,16 +402,32 @@ void Plane::computeStats() {
   scale *= 5.0;
 }
 
+void Plane::mergePlane(const Plane& p) {
+  // Merge points
+  points.insert(points.end(), p.points.begin(), p.points.end()); //  Assume disjoint sets 
+}
 
 void FeatureExtractor::extractPlanes(const PointCloud::Ptr& pc_in, std::vector<Plane>& planes) {
   // Extracting point information
+  auto start_t = Clock::now();
   std::vector<PointInfo> point_info(pc_in->size(), PointInfo());
   computePointInfo(pc_in, point_info);
+  auto end_t = Clock::now();
+  double diff = std::chrono::duration_cast<std::chrono::milliseconds>(end_t - start_t).count();
+  ROS_DEBUG("Compute Point Info %f", diff);
 
-  std::vector<Plane> planes_init;
+  start_t = Clock::now();
+  std::vector<Plane> planes_init;  
   regionGrowing(point_info, planes_init);
+  end_t = Clock::now();
+  diff = std::chrono::duration_cast<std::chrono::milliseconds>(end_t - start_t).count();
+  ROS_DEBUG("Region Growing %f", diff);
 
+  start_t = Clock::now();
   regionMerging(point_info, planes_init, planes);
+  end_t = Clock::now();
+  diff = std::chrono::duration_cast<std::chrono::milliseconds>(end_t - start_t).count();
+  ROS_DEBUG("Region Merging %f", diff);
 
   // for (int i = 0; i < planes.size(); i++) {
   //   std::cout << planes[i] << std::endl;
@@ -495,7 +516,7 @@ void FeatureExtractor::regionGrowing(const std::vector<PointInfo>& point_info, s
   }
   std::sort(idx_sorted.begin(), idx_sorted.end());
 
-  double th_angle = 15.0 / 180.0 * M_PI;
+  double th_angle = 45.0 / 180.0 * M_PI;
   double th_normal = std::cos(th_angle);
   
   // Iterating through points in increasing order of curvature
@@ -593,24 +614,29 @@ void FeatureExtractor::regionGrowing(const std::vector<PointInfo>& point_info, s
     // Adding the current plane to the list if required
 		if (curr_plane.size() > 30) {
       curr_plane.computeStats();
+      curr_plane.plane_id = planes.size();
 			planes.push_back(curr_plane);
 		} else {
-      for (size_t j = 0; j < curr_plane.size(); j++) {
-        // Freeing points as possible neighbors
-				is_used[curr_plane.points[j].point_index] = 0;
-			}
+        for (size_t j = 0; j < curr_plane.size(); j++) {
+          // Freeing points as possible neighbors
+          is_used[curr_plane.points[j].point_index] = 0;
+        }
 		}
 	}
 }
 
 void FeatureExtractor::regionMerging(const std::vector<PointInfo>& point_info, const std::vector<Plane>& planes_in, std::vector<Plane>& planes_out) {
+
+  // double th_angle = 15.0 / 180.0 * M_PI;
+  double th_angle = 45.0 / 180.0 * M_PI;
+  double th_normal = std::cos(th_angle);
   
   // Setting the initial plane label for each point
   std::vector<int> point_label(point_info.size(), -1);
   #pragma omp parallel for num_threads(ncores_)
 	for (size_t i = 0; i < planes_in.size(); i++) {
     for (size_t j = 0; j < planes_in[i].points.size(); j++) {
-      point_label[planes_in[i].points[j].point_index] = i;
+      point_label[planes_in[i].points[j].point_index] = planes_in[i].plane_id;
 		}
 	}
 
@@ -628,8 +654,71 @@ void FeatureExtractor::regionMerging(const std::vector<PointInfo>& point_info, c
     }
   }
 
+  // Merging planes
+  planes_out.clear();
+  std::vector<int> plane_merged(planes_in.size(), 0);
+  for (size_t i = 0; i < planes_in.size(); i++) { // i is the plane ID
+    if (!plane_merged[i]) {
+      std::vector<Plane> new_plane;
+      new_plane.push_back(planes_in[i]);
+
+      Eigen::Vector3d n_ps = planes_in[i].normal;
+      Eigen::Vector3d P_s = planes_in[i].mean_point;
+      double th_o = planes_in[i].scale;
+
+      size_t nprocessed = 0;
+      while (nprocessed < new_plane.size()) {
+
+        int plane_idx = new_plane[nprocessed].plane_id;
+
+        // Check plane neighbours        
+        for (const int& neigh_idx: adjacent_planes[plane_idx]) {
+          // Check if it has been merged yet
+          if (plane_merged[neigh_idx]) {
+            continue;
+          }
+
+          Plane cand_plane = planes_in[neigh_idx];
+          Eigen::Vector3d n_pj = planes_in[neigh_idx].normal;
+          Eigen::Vector3d P_j = planes_in[neigh_idx].mean_point;
+
+          // Judgement1: Normal deviation        
+          double ndev = std::abs(n_ps.adjoint() * n_pj); // Dot product
+          if (ndev < th_normal) {
+            continue;
+          }
+
+          // Judgement2: Orthogonal distance        
+          Eigen::Vector3d P_d = P_s - P_j;
+          double odist = std::abs(n_ps.adjoint() * P_d); // Dot product
+          if (odist > th_o) {
+            continue;
+          }
+
+          new_plane.push_back(cand_plane);                  
+        }
+
+        plane_merged[plane_idx] = 1;
+        nprocessed++;
+      }
+
+      // Merging the final plane
+      Plane merged_plane = new_plane[0];
+      for (size_t j = 1; j < new_plane.size(); j++) {
+        merged_plane.mergePlane(new_plane[j]);
+      }
+
+      merged_plane.computeStats();
+      planes_out.push_back(merged_plane);
+    }
+  }
+
+  // std::cout << "Planes in: " << planes_in.size() << std::endl;
+  // std::cout << "Planes out: " << planes_out.size() << std::endl;
+
+  // Filling plane in
   pcl::RGB rgb;
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc_rgb(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc_rgb_in(new pcl::PointCloud<pcl::PointXYZRGB>);
 	for (size_t i = 0; i < planes_in.size(); i++) {
       // Generate unique colour
       pcl::visualization::getRandomColors(rgb, 0, 255);      
@@ -642,32 +731,47 @@ void FeatureExtractor::regionMerging(const std::vector<PointInfo>& point_info, c
         p.x = (float)planes_in[i].points[j].coords(0);
         p.y = (float)planes_in[i].points[j].coords(1);
         p.z = (float)planes_in[i].points[j].coords(2);
-        pc_rgb->push_back(p);
+        pc_rgb_in->push_back(p);
       }    
   }
 
-   // Create viewer
-  pcl::visualization::PCLVisualizer viewer;
-  viewer.setBackgroundColor (0, 0, 0);
-
-  viewer.addPointCloud<pcl::PointXYZRGB>(pc_rgb, "PC");
-  viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "PC");
-
-  // Keep viewer running
-  while (!viewer.wasStopped()) {
-    viewer.spinOnce(100);
-    boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+  // Filling plane out
+  // pcl::RGB rgb;
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc_rgb_out(new pcl::PointCloud<pcl::PointXYZRGB>);
+	for (size_t i = 0; i < planes_out.size(); i++) {
+      // Generate unique colour
+      pcl::visualization::getRandomColors(rgb, 0, 255);      
+      for (size_t j = 0; j < planes_out[i].points.size(); j++) { // j is the point id in plane i
+        pcl::PointXYZRGB p(          
+          (std::uint8_t)rgb.r,
+          (std::uint8_t)rgb.g,
+          (std::uint8_t)rgb.b
+        );
+        p.x = (float)planes_out[i].points[j].coords(0);
+        p.y = (float)planes_out[i].points[j].coords(1);
+        p.z = (float)planes_out[i].points[j].coords(2);
+        pc_rgb_out->push_back(p);
+      }    
   }
 
+  // Create viewer in
+  pcl::visualization::PCLVisualizer viewer_in("Planes IN");
+  viewer_in.setBackgroundColor (0, 0, 0);
+  viewer_in.addPointCloud<pcl::PointXYZRGB>(pc_rgb_in, "PC");
+  viewer_in.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "PC");
 
-  // for (int i = 0; i < adjacent_planes.size(); i++) {
-  //   std::cout << "Plane " << i << std::endl;
-  //   for (auto elem : adjacent_planes[i]) {
-  //       std::cout << elem << " , ";
-  //   }
-  //   std::cout << "---" << std::endl;
-  // }
-  // exit(0);
+  // Create viewer out
+  pcl::visualization::PCLVisualizer viewer_out("Planes OUT");
+  viewer_out.setBackgroundColor (0, 0, 0);
+  viewer_out.addPointCloud<pcl::PointXYZRGB>(pc_rgb_out, "PC");
+  viewer_out.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "PC");
+
+  // Keep viewer running
+  while (!viewer_in.wasStopped() && !viewer_out.wasStopped()) {
+    viewer_in.spinOnce(100);
+    viewer_out.spinOnce(100);
+    boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+  }
 }
 
 } // namespace liodom

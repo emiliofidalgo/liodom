@@ -83,6 +83,8 @@ std::ostream& operator<<(std::ostream& os, const PointInfo& pi) {
 struct Plane {
 
   inline Plane() :
+    plane_id(-1),
+    mean_point(0.0, 0.0, 0.0),
     normal(0.0, 0.0, 0.0),
     curvature(DBL_MAX),
     scale(0.0) {};
@@ -96,11 +98,14 @@ struct Plane {
   }
 
   void computeStats();
+  void mergePlane(const Plane& p);
 
   friend std::ostream& operator<<(std::ostream& os, const Plane& p);
 
+  int plane_id;
   std::vector<PointInfo> points;
-  Eigen::Vector3d normal;
+  Eigen::Vector3d mean_point;
+  Eigen::Vector3d normal;  
   double curvature;
   double scale; 
 };
