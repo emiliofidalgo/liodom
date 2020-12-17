@@ -40,8 +40,8 @@ class SharedData {
     void pushPointCloud(const PointCloud::Ptr& pc_in, const std_msgs::Header& header);
     bool popPointCloud(PointCloud::Ptr& pc_out, std_msgs::Header& header);
 
-    void pushFeatures(const PointCloud::Ptr& feat_in);
-    bool popFeatures(PointCloud::Ptr& feat_out);
+    void pushFeatures(const PointCloud::Ptr& feat_in, std_msgs::Header& header);
+    bool popFeatures(PointCloud::Ptr& feat_out, std_msgs::Header& header);
 
   private:
     // Controlling the singleton
@@ -56,6 +56,7 @@ class SharedData {
     // Feature control
     std::mutex feat_mutex_;
     std::queue<PointCloud::Ptr> feat_buf_;
+    std::queue<std_msgs::Header> feat_header_;
 
   protected:
     SharedData() {};

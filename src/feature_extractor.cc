@@ -110,7 +110,7 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
       }
 
       // Send extracted features for laser odometry
-      sdata->pushFeatures(pc_edges);
+      sdata->pushFeatures(pc_edges, pc_header);
 
       // Publishing edges if there is someone listening
       if (pc_edges_pub_.getNumSubscribers() > 0) {

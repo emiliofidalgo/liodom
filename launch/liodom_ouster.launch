@@ -22,12 +22,32 @@
     <param name="save_results_dir" type="string" value="/home/emilio/Escritorio/results/" />
     
     <remap from="~points" to="/os1_cloud_node/points" />
+  </node>  
 
+  <node pkg="tf"
+        type="static_transform_publisher"
+	      name="map2odom"
+	      args="0 0 0 0 0 0 map odom 1000" >
   </node>
 
   <node pkg="tf" 
         type="static_transform_publisher" 
-        name="bl2os1" 
-        args="0 0 0 0 0 0 base_link os1_lidar 10" />
+	      name="bl2os1"
+	      args="0 0 0 0 0 0 base_link os1_sensor 1000" >
+  </node>
+
+  <node pkg="tf"
+        type="static_transform_publisher" 
+	      name="os12imu"
+	      args="0.006253 -0.011775 0.007645 0 0 0 1 os1_sensor os1_imu 1000" >
+  </node>
+
+  <node pkg="tf"
+        type="static_transform_publisher" 
+	      name="os12lidar"
+	      args="0 0 0.03618 0 0 1 0 os1_sensor os1_lidar 1000" >
+  </node>
+
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find liodom)/rviz/liodom_ouster.rviz" />
 
 </launch>
