@@ -91,6 +91,8 @@ class LaserOdometer {
   size_t prev_frames_;
   bool save_results_;
   std::string results_dir_;
+  std::string fixed_frame_;
+  std::string base_frame_;
 
   // Variables
   bool init_;

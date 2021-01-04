@@ -9,7 +9,7 @@ Panels:
         - /Liodom1/Shape1
         - /Floam1/Shape1
       Splitter Ratio: 0.6323529481887817
-    Tree Height: 701
+    Tree Height: 363
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -389,7 +389,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 681.6016235351562
+      Distance: 338.5091247558594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -397,17 +397,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -210.22030639648438
-        Y: 55.78096008300781
-        Z: -100.16918182373047
+        X: -4.41725492477417
+        Y: -4.829706192016602
+        Z: -13.469415664672852
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1647961139678955
+      Pitch: 0.6147966384887695
       Target Frame: base_link
-      Yaw: 3.20318341255188
+      Yaw: 3.4531848430633545
     Saved: ~
 Window Geometry:
   Displays:
@@ -425,5 +425,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1856
-  X: 64
+  X: 1984
   Y: 27

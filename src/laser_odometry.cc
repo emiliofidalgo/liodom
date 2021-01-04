@@ -96,6 +96,14 @@ void LaserOdometer::initialize() {
   nh_.param<std::string>("save_results_dir", results_dir_, "~/");
   ROS_INFO("Results directory: %s", results_dir_.c_str());
 
+  // Fixed frame
+  nh_.param<std::string>("fixed_frame", fixed_frame_, "odom");
+  ROS_INFO("Fixed frame: %s", fixed_frame_.c_str());
+
+  // Base frame
+  nh_.param<std::string>("base_frame", base_frame_, "base_link");
+  ROS_INFO("Fixed frame: %s", base_frame_.c_str());
+
   // Number of previous frames to create a local map
   int pframes = 5;
   nh_.param("prev_frames", pframes, 5);  
@@ -207,8 +215,8 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         Eigen::Vector3d t_current = odom_.translation();
 
         nav_msgs::Odometry laser_odom_msg;
-        laser_odom_msg.header.frame_id = "odom";
-        laser_odom_msg.child_frame_id = "base_link";
+        laser_odom_msg.header.frame_id = fixed_frame_;
+        laser_odom_msg.child_frame_id = base_frame_;
         laser_odom_msg.header.stamp = feat_header.stamp;
         laser_odom_msg.pose.pose.orientation.x = q_current.x();
         laser_odom_msg.pose.pose.orientation.y = q_current.y();
@@ -224,7 +232,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         transform.setOrigin( tf::Vector3(t_current.x(), t_current.y(), t_current.z()));
         tf::Quaternion q(q_current.x(), q_current.y(), q_current.z(), q_current.w());
         transform.setRotation(q);
-        t_br_.sendTransform(tf::StampedTransform(transform, feat_header.stamp, "odom", "base_link"));
+        t_br_.sendTransform(tf::StampedTransform(transform, feat_header.stamp, fixed_frame_, base_frame_));
       }
     } 
 
