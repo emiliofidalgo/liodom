@@ -84,9 +84,15 @@ struct Point2LineFactor {
 		Eigen::Matrix<T, 3, 1> nu = (lp - lpa).cross(lp - lpb);
 		Eigen::Matrix<T, 3, 1> de = lpa - lpb;
 
-		residual[0] = nu.x() / de.norm();
-		residual[1] = nu.y() / de.norm();
-		residual[2] = nu.z() / de.norm();
+		T d = ceres::sqrt(
+			cp.x() * cp.x() + cp.y() * cp.y()
+		);		
+		// T w = ceres::exp((d - T(3.0)) / (T(75.0) - T(3.0)));
+		T w = ceres::pow(T(10.0), (d - T(3.0)) / (T(75.0) - T(3.0)));
+
+		residual[0] = w * (nu.x() / de.norm());
+		residual[1] = w * (nu.y() / de.norm());
+		residual[2] = w * (nu.z() / de.norm());
 
 		return true;
 	}
