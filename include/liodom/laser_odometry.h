@@ -87,7 +87,9 @@ class LaserOdometer {
   ros::Publisher odom_pub_;
   tf::TransformBroadcaster t_br_;
 
-  // Params  
+  // Params
+  double min_range_;
+  double max_range_;  
   size_t prev_frames_;
   bool save_results_;
   std::string results_dir_;

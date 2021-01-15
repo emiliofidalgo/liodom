@@ -21,7 +21,7 @@
 
 namespace liodom {
 
-LocalMapManager::LocalMapManager(const size_t max_frames) : 
+LocalMapManager::LocalMapManager(const size_t max_frames) :  
   total_points_(new PointCloud),
   nframes_(0),
   max_nframes_(max_frames)
@@ -70,6 +70,8 @@ void LocalMapManager::setMaxFrames(const size_t max_nframes) {
 
 LaserOdometer::LaserOdometer(const ros::NodeHandle& nh) :
   nh_(nh),
+  min_range_(3.0),
+  max_range_(75.0),
   prev_frames_(5),
   save_results_(false),
   results_dir_("~/"),
@@ -89,6 +91,12 @@ LaserOdometer::~LaserOdometer() {
 void LaserOdometer::initialize() {
   
   // Reading parameters
+  // Minimum range in meters
+  nh_.param("min_range", min_range_, 3.0);  
+
+  // Maximum range in meters
+  nh_.param("max_range", max_range_, 75.0);
+
   // Save results
   nh_.param("save_results", save_results_, false);
 
@@ -311,7 +319,7 @@ void LaserOdometer::addEdgeConstraints(const PointCloud::Ptr& edges,
                              local_map->points[indices[1]].y,
                              local_map->points[indices[1]].z);
 
-        ceres::CostFunction* cost_function = Point2LineFactor::create(curr_point, pt_a, pt_b);
+        ceres::CostFunction* cost_function = Point2LineFactor::create(curr_point, pt_a, pt_b, min_range_, max_range_);
         problem->AddResidualBlock(cost_function, loss, param_q, param_t);
       }
     }

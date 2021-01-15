@@ -63,8 +63,10 @@ struct Point2PointFactor {
 
 struct Point2LineFactor {
 
-	Point2LineFactor(Eigen::Vector3d curr_point, Eigen::Vector3d map_point_a, Eigen::Vector3d map_point_b) :
-    curr_point_(curr_point), map_point_a_(map_point_a), map_point_b_(map_point_b) {};
+	Point2LineFactor(Eigen::Vector3d curr_point, Eigen::Vector3d map_point_a, Eigen::Vector3d map_point_b, 
+		double min_d, double max_d) :
+    curr_point_(curr_point), map_point_a_(map_point_a), map_point_b_(map_point_b),
+		min_dist_(min_d), max_dist_(max_d) {};
 
 	template <typename T>
 	bool operator()(const T* q, const T* t, T* residual) const {
@@ -89,7 +91,7 @@ struct Point2LineFactor {
 		T d = ceres::sqrt(
 			cp_l.x() * cp_l.x() + cp_l.y() * cp_l.y()
 		);
-		d = (d - T(3.0)) / (T(75.0) - T(3.0)); // Normalize distance
+		d = (d - T(min_dist_)) / (T(max_dist_) - T(min_dist_)); // Normalize distance
 
 		//T w = ceres::exp(d);
 		// T w_z = ceres::pow(T(10.0), -d);
@@ -104,13 +106,18 @@ struct Point2LineFactor {
 
 	static ceres::CostFunction* create(const Eigen::Vector3d curr_point, 
                                      const Eigen::Vector3d map_point_a,
-                                     const Eigen::Vector3d map_point_b) {
-		return new ceres::AutoDiffCostFunction<Point2LineFactor, 3, 4, 3>(new Point2LineFactor(curr_point, map_point_a, map_point_b));
+                                     const Eigen::Vector3d map_point_b,
+																		 const double min_range_,
+																		 const double max_range_) {
+		return new ceres::AutoDiffCostFunction<Point2LineFactor, 3, 4, 3>(new Point2LineFactor(curr_point, map_point_a, map_point_b, min_range_, max_range_));
 	}
 
 	Eigen::Vector3d curr_point_;
   Eigen::Vector3d map_point_a_;
   Eigen::Vector3d map_point_b_;
+
+	double min_dist_;
+	double max_dist_;
 };
 
 }  // namespace liodom
