@@ -250,6 +250,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         laser_odom_msg.header.frame_id = fixed_frame_;
         laser_odom_msg.child_frame_id = base_frame_;
         laser_odom_msg.header.stamp = feat_header.stamp;
+        //Filling pose
         laser_odom_msg.pose.pose.orientation.x = q_current.x();
         laser_odom_msg.pose.pose.orientation.y = q_current.y();
         laser_odom_msg.pose.pose.orientation.z = q_current.z();
@@ -257,29 +258,31 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         laser_odom_msg.pose.pose.position.x = t_current.x();
         laser_odom_msg.pose.pose.position.y = t_current.y();
         laser_odom_msg.pose.pose.position.z = t_current.z();
-        odom_pub_.publish(laser_odom_msg);
-
-        // Publishing twist
+        //Filling twist
         double delta_time = feat_header.stamp.toSec() - prev_stamp_;
         Eigen::Isometry3d delta_odom = ((prev_odom_*laser_to_base_).inverse() * odom_base_link);
         Eigen::Vector3d t_delta = delta_odom.translation();
-        geometry_msgs::TwistStamped twist_msg;
-        twist_msg.header.frame_id = base_frame_;
-        twist_msg.header.stamp = feat_header.stamp;
-        twist_msg.twist.linear.x = t_delta.x()/delta_time;
-        twist_msg.twist.linear.y = t_delta.y()/delta_time;
-        twist_msg.twist.linear.z = t_delta.z()/delta_time;
+        laser_odom_msg.twist.twist.linear.x = t_delta.x()/delta_time;
+        laser_odom_msg.twist.twist.linear.y = t_delta.y()/delta_time;
+        laser_odom_msg.twist.twist.linear.z = t_delta.z()/delta_time;
         Eigen::Quaterniond q_delta(delta_odom.rotation());
         // we use tf because euler angles in Eigen present singularity problems
         tf::Quaternion quat(q_delta.x(), q_delta.y(), q_delta.z(), q_delta.w());
         tf::Matrix3x3 m(quat);
         double roll, pitch, yaw;
         m.getRPY(roll, pitch, yaw);
-        twist_msg.twist.angular.x = roll/delta_time;
-        twist_msg.twist.angular.y = pitch/delta_time;
-        twist_msg.twist.angular.z = yaw/delta_time;
-        twist_pub_.publish(twist_msg);
+        laser_odom_msg.twist.twist.angular.x = roll/delta_time;
+        laser_odom_msg.twist.twist.angular.y = pitch/delta_time;
+        laser_odom_msg.twist.twist.angular.z = yaw/delta_time;
         prev_stamp_ = feat_header.stamp.toSec();
+        odom_pub_.publish(laser_odom_msg);
+
+        // Publishing twist
+        geometry_msgs::TwistStamped twist_msg;
+        twist_msg.header.frame_id = base_frame_;
+        twist_msg.header.stamp = feat_header.stamp;
+        twist_msg.twist = laser_odom_msg.twist.twist;
+        twist_pub_.publish(twist_msg);
 
         //Publishing TF
         tf::Transform transform;
