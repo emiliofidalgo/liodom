@@ -34,7 +34,9 @@
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
+#include <geometry_msgs/TwistStamped.h>
 
 // PCL
 #include <pcl/common/transforms.h>
@@ -85,7 +87,8 @@ class LaserOdometer {
   // ROS variables
   ros::NodeHandle nh_;  
   ros::Publisher odom_pub_;
-  tf::TransformBroadcaster t_br_;
+  ros::Publisher twist_pub_;
+  tf::TransformBroadcaster tf_broadcaster_;
 
   // Params
   double min_range_;
@@ -95,11 +98,13 @@ class LaserOdometer {
   std::string results_dir_;
   std::string fixed_frame_;
   std::string base_frame_;
+  std::string laser_frame_;
 
   // Variables
   bool init_;
   Eigen::Isometry3d prev_odom_;
   Eigen::Isometry3d odom_;
+  double prev_stamp_;
   LocalMapManager lmap_manager;
   double param_q[4] = {0, 0, 0, 1};
   double param_t[3] = {0, 0, 0};
@@ -107,6 +112,7 @@ class LaserOdometer {
   // Eigen::Map<Eigen::Vector3d> t_curr;
   SharedData* sdata;
   Stats* stats;
+  Eigen::Isometry3d laser_to_base_;
 
   void computeLocalMap(PointCloud::Ptr& local_map);
   void addEdgeConstraints(const PointCloud::Ptr& edges,
@@ -115,6 +121,7 @@ class LaserOdometer {
                           const Eigen::Isometry3d& pose,
                           ceres::Problem* problem,
                           ceres::LossFunction* loss);
+  bool getBaseToLaserTf (const std::string& frame_id);
 };
 
 }  // namespace liodom

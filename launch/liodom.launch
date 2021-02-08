@@ -21,6 +21,7 @@
     <param name="prev_frames" type="int" value="15" />
     <param name="fixed_frame" type="string" value="odom" />
     <param name="base_frame" type="string" value="base_link" />
+    <param name="laser_frame" type="string" value="laser" />
     <param name="save_results" type="bool" value="true" />
     <param name="save_results_dir" type="string" value="/home/emilio/Escritorio/results/" />
     
@@ -32,6 +33,12 @@
         type="static_transform_publisher"
 	      name="world2odom"
 	      args="0 0 0 0 0 0 world odom 1000" >
+  </node>
+
+  <node pkg="tf"
+        type="static_transform_publisher"
+	      name="baselink2laser"
+	      args="0 0 0 0 0 0 base_link laser 40" >
   </node>
 
   <group if="$(arg viz)">
