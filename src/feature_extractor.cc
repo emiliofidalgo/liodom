@@ -23,63 +23,21 @@ namespace liodom {
 
 FeatureExtractor::FeatureExtractor(const ros::NodeHandle& nh) :
   nh_(nh),
-  min_range_(3.0),
-  max_range_(75.0),
-  lidar_type_(0),
-  scan_lines_(64),
-  scan_regions_(8),
-  edges_per_region_(10),
-  min_points_per_scan_(scan_regions_ * edges_per_region_ + 10),
-  save_results_(false),
   sdata(SharedData::getInstance()),
   stats(Stats::getInstance()),
-  ncores_(2)
-  {
+  params(Params::getInstance()),
+  ncores_(2) {
     // Updating the available number of cores for processing
     int max_ncores = omp_get_max_threads() - 5;
     if (max_ncores > 1) {
       ncores_ = max_ncores;
     }
+
+    // Publishers
+    pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
 }
 
 FeatureExtractor::~FeatureExtractor() {  
-}
-
-void FeatureExtractor::initialize() {
-  
-  // Reading parameters
-  // Minimum range in meters
-  nh_.param("min_range", min_range_, 3.0);
-  ROS_INFO("Minimum range: %.2f", min_range_);
-
-  // Maximum range in meters
-  nh_.param("max_range", max_range_, 75.0);
-  ROS_INFO("Maximum range: %.2f", max_range_);
-
-  // Lidar model: 0 for Velodyne, 1 for Ouster
-  nh_.param("lidar_type", lidar_type_, 0);
-  ROS_INFO("Lidar type: %i", lidar_type_);
-
-  // Horizontal scan lines
-  nh_.param("scan_lines", scan_lines_, 64);
-  ROS_INFO("Scan lines: %i", scan_lines_);
-
-  // Scan regions
-  nh_.param("scan_regions", scan_regions_, 8);
-  ROS_INFO("Scan regions: %i", scan_regions_);
-
-  // Edges per region
-  nh_.param("edges_per_region", edges_per_region_, 10);
-  ROS_INFO("Edges per region: %i", edges_per_region_);
-
-  min_points_per_scan_ = scan_regions_ * edges_per_region_ + 10;
-
-  // Save results
-  nh_.param("save_results", save_results_, false);
-  ROS_INFO("Save results: %s", save_results_ ? "Yes" : "No");
-
-  // Publishers
-  pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
 }
 
 void FeatureExtractor::operator()(std::atomic<bool>& running) {
@@ -105,7 +63,7 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
       ROS_DEBUG("Feature extraction: %lu edges", pc_edges->points.size());
 
       // Register stats
-      if (save_results_) {
+      if (params->save_results_) {
         stats->addFeatureExtractionTime(start_t, end_t);
       }
 
@@ -138,7 +96,7 @@ bool FeatureExtractor::isValidPoint(const double x, const double y, const double
 
   // Filter the point by its distance in XY
   *dist = std::sqrt(x * x + y * y);
-  if (*dist > max_range_ || *dist < min_range_) {
+  if (*dist > params->max_range_ || *dist < params->min_range_) {
     valid = false;
   }
 
@@ -149,12 +107,12 @@ void FeatureExtractor::splitPointCloud(const PointCloud::Ptr& pc_in, std::vector
 
   // Initialize the vector of scans
   scans.clear();
-  for (int i = 0; i < scan_lines_; i++) {
+  for (int i = 0; i < params->scan_lines_; i++) {
     scans.push_back(PointCloud::Ptr(new PointCloud));
   }
 
-  // Processing the scan according to the model  
-  if (lidar_type_ == 0) {  // Velodyne
+  // Processing the scan according to the Lidar model
+  if (params->lidar_type_ == 0) {  // Velodyne
     // Assigning each point to its corresponding scan line
     for (size_t i = 0; i < pc_in->points.size(); i++) {
       double x = pc_in->points[i].x;
@@ -171,27 +129,27 @@ void FeatureExtractor::splitPointCloud(const PointCloud::Ptr& pc_in, std::vector
       int scan_id = -1;
       double angle = atan(z / distance) * 180 / M_PI;
 
-      if (scan_lines_ == 64) {
+      if (params->scan_lines_ == 64) {
         if (angle >= -8.83)
           scan_id = int((2 - angle) * 3.0 + 0.5);
         else
-          scan_id = scan_lines_ / 2 + int((-8.83 - angle) * 2.0 + 0.5);
+          scan_id = params->scan_lines_ / 2 + int((-8.83 - angle) * 2.0 + 0.5);
 
         if (angle > 2 || angle < -24.33 || scan_id > 63 || scan_id < 0) {
           continue;
         }        
-      } else if (scan_lines_ == 32) {
+      } else if (params->scan_lines_ == 32) {
         scan_id = int((angle + 92.0 / 3.0) * 3.0 / 4.0);
-        if (scan_id > (scan_lines_ - 1) || scan_id < 0) {
+        if (scan_id > (params->scan_lines_ - 1) || scan_id < 0) {
           continue;
         }
-      } else if (scan_lines_ == 16) {
+      } else if (params->scan_lines_ == 16) {
         scan_id = int((angle + 15) / 2 + 0.5);
-        if (scan_id > (scan_lines_ - 1) || scan_id < 0) {
+        if (scan_id > (params->scan_lines_ - 1) || scan_id < 0) {
           continue;
         }                      
       } else {
-        ROS_ERROR_ONCE("Invalid scan lines: %i", scan_lines_);
+        ROS_ERROR_ONCE("Invalid scan lines: %i", params->scan_lines_);
       }
 
       // Adding the point to the corresponding scan
@@ -199,7 +157,7 @@ void FeatureExtractor::splitPointCloud(const PointCloud::Ptr& pc_in, std::vector
         scans[scan_id]->push_back(pc_in->points[i]);
       }      
     }
-  } else if (lidar_type_ == 1) { // Ouster
+  } else if (params->lidar_type_ == 1) { // Ouster
     // Assigning each point to its corresponding scan line
     for (size_t row = 0; row < pc_in->height; row++) {
       for (size_t col = 0; col < pc_in->width; col++) {
@@ -227,9 +185,9 @@ void FeatureExtractor::extractFeatures(const std::vector<PointCloud::Ptr>& scans
   // Code adapted from FLOAM (https://github.com/wh200720041/floam)
 
   // Each scan is processed individually  
-  for (int i = 0; i < scan_lines_; i++) {
+  for (int i = 0; i < params->scan_lines_; i++) {
     // Check that at least a minimum number of points can be extracted as edges
-    if (scans[i]->points.size() < min_points_per_scan_) {
+    if (scans[i]->points.size() < params->min_points_per_scan_) {
       continue;
     }
 
@@ -280,12 +238,12 @@ void FeatureExtractor::extractFeatures(const std::vector<PointCloud::Ptr>& scans
 
     // Extractg edges from each region
     int total_points = scans[i]->points.size() - 10;
-    int sector_length = (int)(total_points / scan_regions_);
-    for(int j = 0; j < scan_regions_; j++) {
+    int sector_length = (int)(total_points / params->scan_regions_);
+    for(int j = 0; j < params->scan_regions_; j++) {
       // Compute the bounds of each region
       int region_start = sector_length * j;
       int region_end = sector_length * (j + 1);
-      if (j == scan_regions_ - 1) {
+      if (j == params->scan_regions_ - 1) {
         // Remaining points are considered in the last region
         region_end = total_points;
       }
@@ -311,7 +269,7 @@ void FeatureExtractor::extractFeaturesFromRegion(const PointCloud::Ptr& pc_in, s
     
     if (!picked_[point_index]) { // Not picked yet
       // Checking distance / max per region
-      if (smooths[i].smoothness < 0.1 || picked_edges > edges_per_region_) {
+      if (smooths[i].smoothness < 0.1 || picked_edges > params->edges_per_region_) {
         break;
       }
 

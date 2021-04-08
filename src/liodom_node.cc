@@ -28,11 +28,13 @@
 #include <liodom/defs.h>
 #include <liodom/feature_extractor.h>
 #include <liodom/laser_odometry.h>
+#include <liodom/params.h>
 #include <liodom/shared_data.h>
 #include <liodom/stats.h>
 
 liodom::SharedData* sdata;
 liodom::Stats* stats;
+liodom::Params* params;
 
 void lidarClb(const sensor_msgs::PointCloud2ConstPtr& lidar_msg) {
   
@@ -52,21 +54,15 @@ int main(int argc, char** argv) {
   ros::init (argc, argv, "liodom");
   ros::NodeHandle nh("~");
 
-  // Reading common parameters
-  // Save results
-  bool save_results;
-  nh.param("save_results", save_results, false);
-  // Results directory
-  std::string results_dir;
-  nh.param<std::string>("save_results_dir", results_dir, "~/");
+  // Reading parameters
+  params = liodom::Params::getInstance();
+  params->readParams(nh);
 
   Eigen::initParallel();
 
   // Creating threads
   liodom::FeatureExtractor fext(nh);
-  fext.initialize();
   liodom::LaserOdometer lodom(nh);
-  lodom.initialize();
 
   // Launching threads
   std::atomic<bool> running {true};
@@ -89,10 +85,10 @@ int main(int argc, char** argv) {
   lodom_thread.join();
 
   // Saving results if required
-  if (save_results) {
+  if (params->save_results_) {
     std::cout << "Writing results to ";
-    std::cout << results_dir.c_str() << std::endl;
-    stats->writeResults(results_dir);
+    std::cout << params->results_dir_.c_str() << std::endl;
+    stats->writeResults(params->results_dir_);
   }
   
   return 0;

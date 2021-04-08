@@ -74,6 +74,7 @@ include_directories(
 add_library(liodom
             src/shared_data.cc
             src/stats.cc
+            src/params.cc
             src/feature_extractor.cc
             src/laser_odometry.cc)
 target_link_libraries(liodom

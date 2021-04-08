@@ -34,6 +34,7 @@
 #include <sensor_msgs/PointCloud2.h>
 
 // Liodom
+#include <liodom/params.h>
 #include <liodom/shared_data.h>
 #include <liodom/stats.h>
 
@@ -63,28 +64,18 @@ class FeatureExtractor {
     explicit FeatureExtractor(const ros::NodeHandle& nh);
     virtual ~FeatureExtractor();
 
-    void initialize();
     void operator()(std::atomic<bool>& running);
 
   private:
     // ROS variables
     ros::NodeHandle nh_;
-    ros::Publisher pc_edges_pub_;    
-
-    // Params    
-    double min_range_;
-    double max_range_;
-    int lidar_type_;
-    int scan_lines_;
-    int scan_regions_;
-    int edges_per_region_;
-    size_t min_points_per_scan_;
-    bool save_results_;
+    ros::Publisher pc_edges_pub_;
 
     // Variables
-    bool picked_[400000];
+    bool picked_[400000];           
     SharedData* sdata;
     Stats* stats;
+    Params* params;
     int ncores_;
 
     bool isValidPoint(const double x, const double y, const double z, double* dist);

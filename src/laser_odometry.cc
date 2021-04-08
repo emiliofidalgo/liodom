@@ -70,67 +70,21 @@ void LocalMapManager::setMaxFrames(const size_t max_nframes) {
 
 LaserOdometer::LaserOdometer(const ros::NodeHandle& nh) :
   nh_(nh),
-  min_range_(3.0),
-  max_range_(75.0),
-  prev_frames_(5),
-  save_results_(false),
-  results_dir_("~/"),
   init_(false),
   prev_odom_(Eigen::Isometry3d::Identity()),
   odom_(Eigen::Isometry3d::Identity()),
   prev_stamp_(0.0),
-  lmap_manager(prev_frames_),
-  // q_curr(param_q),
-  // t_curr(param_t),
   sdata(SharedData::getInstance()),
-  stats(Stats::getInstance()) {
-}
-
-LaserOdometer::~LaserOdometer() {
-}
-
-void LaserOdometer::initialize() {
-  
-  // Reading parameters
-  // Minimum range in meters
-  nh_.param("min_range", min_range_, 3.0);  
-
-  // Maximum range in meters
-  nh_.param("max_range", max_range_, 75.0);
-
-  // Save results
-  nh_.param("save_results", save_results_, false);
-
-  // Results directory
-  nh_.param<std::string>("save_results_dir", results_dir_, "~/");
-  ROS_INFO("Results directory: %s", results_dir_.c_str());
-
-  // Fixed frame
-  nh_.param<std::string>("fixed_frame", fixed_frame_, "odom");
-  ROS_INFO("Fixed frame: %s", fixed_frame_.c_str());
-
-  // Base frame
-  nh_.param<std::string>("base_frame", base_frame_, "base_link");
-  ROS_INFO("Fixed frame: %s", base_frame_.c_str());
-
-  // Laser frame
-  nh_.param<std::string>("laser_frame", laser_frame_, "");
-  if (laser_frame_ == ""){
-    ROS_INFO("Using laser frame from msg header");
-  }else{
-    ROS_INFO("Laser frame: %s", laser_frame_.c_str());
-  }
-
-  // Number of previous frames to create a local map
-  int pframes = 5;
-  nh_.param("prev_frames", pframes, 5);  
-  ROS_INFO("Previous frames: %i", pframes);
-  prev_frames_ = (size_t)pframes;
-  lmap_manager.setMaxFrames(prev_frames_);
+  stats(Stats::getInstance()),
+  params(Params::getInstance()),
+  lmap_manager(params->local_map_size_) {
 
   // Publishers
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>("odom", 10);
   twist_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("twist", 10);
+}
+
+LaserOdometer::~LaserOdometer() {
 }
 
 void LaserOdometer::operator()(std::atomic<bool>& running) {
@@ -144,9 +98,11 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
       if (!init_) {
 
         // cache the static tf from base to laser
-        if (laser_frame_ == "") laser_frame_ = feat_header.frame_id;
+        if (params->laser_frame_ == "") {
+          params->laser_frame_ = feat_header.frame_id;
+        }
 
-        if (!getBaseToLaserTf(laser_frame_))
+        if (!getBaseToLaserTf(params->laser_frame_))
         {
           ROS_WARN("Skipping point_cloud");
           return;
@@ -157,7 +113,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         prev_stamp_ = feat_header.stamp.toSec();
 
         // Register stats
-        if (save_results_) {
+        if (params->save_results_) {
           stats->addPose(odom_.matrix());
         }
 
@@ -177,8 +133,6 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         Eigen::Isometry3d pred_odom = odom_ * (prev_odom_.inverse() * odom_);
         prev_odom_ = odom_;
         odom_ = pred_odom;
-        // q_curr = Eigen::Quaterniond(odom_.rotation());
-        // t_curr = odom_.translation();
 
         // Updating the initial guess
         Eigen::Quaterniond q_curr(odom_.rotation());
@@ -235,7 +189,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         auto end_t = Clock::now();
 
         // Register stats
-        if (save_results_) {
+        if (params->save_results_) {
           stats->addPose(odom_.matrix());
           stats->addLaserOdometryTime(start_t, end_t);
         }
@@ -247,8 +201,8 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
 
         // Publishing odometry
         nav_msgs::Odometry laser_odom_msg;
-        laser_odom_msg.header.frame_id = fixed_frame_;
-        laser_odom_msg.child_frame_id = base_frame_;
+        laser_odom_msg.header.frame_id = params->fixed_frame_;
+        laser_odom_msg.child_frame_id = params->base_frame_;
         laser_odom_msg.header.stamp = feat_header.stamp;
         //Filling pose
         laser_odom_msg.pose.pose.orientation.x = q_current.x();
@@ -260,36 +214,36 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         laser_odom_msg.pose.pose.position.z = t_current.z();
         //Filling twist
         double delta_time = feat_header.stamp.toSec() - prev_stamp_;
-        Eigen::Isometry3d delta_odom = ((prev_odom_*laser_to_base_).inverse() * odom_base_link);
+        Eigen::Isometry3d delta_odom = ((prev_odom_ * laser_to_base_).inverse() * odom_base_link);
         Eigen::Vector3d t_delta = delta_odom.translation();
-        laser_odom_msg.twist.twist.linear.x = t_delta.x()/delta_time;
-        laser_odom_msg.twist.twist.linear.y = t_delta.y()/delta_time;
-        laser_odom_msg.twist.twist.linear.z = t_delta.z()/delta_time;
+        laser_odom_msg.twist.twist.linear.x = t_delta.x() / delta_time;
+        laser_odom_msg.twist.twist.linear.y = t_delta.y() / delta_time;
+        laser_odom_msg.twist.twist.linear.z = t_delta.z() / delta_time;
         Eigen::Quaterniond q_delta(delta_odom.rotation());
         // we use tf because euler angles in Eigen present singularity problems
         tf::Quaternion quat(q_delta.x(), q_delta.y(), q_delta.z(), q_delta.w());
         tf::Matrix3x3 m(quat);
         double roll, pitch, yaw;
         m.getRPY(roll, pitch, yaw);
-        laser_odom_msg.twist.twist.angular.x = roll/delta_time;
-        laser_odom_msg.twist.twist.angular.y = pitch/delta_time;
-        laser_odom_msg.twist.twist.angular.z = yaw/delta_time;
+        laser_odom_msg.twist.twist.angular.x = roll / delta_time;
+        laser_odom_msg.twist.twist.angular.y = pitch / delta_time;
+        laser_odom_msg.twist.twist.angular.z = yaw / delta_time;
         prev_stamp_ = feat_header.stamp.toSec();
         odom_pub_.publish(laser_odom_msg);
 
         // Publishing twist
         geometry_msgs::TwistStamped twist_msg;
-        twist_msg.header.frame_id = base_frame_;
+        twist_msg.header.frame_id = params->base_frame_;
         twist_msg.header.stamp = feat_header.stamp;
         twist_msg.twist = laser_odom_msg.twist.twist;
         twist_pub_.publish(twist_msg);
 
         //Publishing TF
         tf::Transform transform;
-        transform.setOrigin( tf::Vector3(t_current.x(), t_current.y(), t_current.z()));
+        transform.setOrigin(tf::Vector3(t_current.x(), t_current.y(), t_current.z()));
         tf::Quaternion q(q_current.x(), q_current.y(), q_current.z(), q_current.w());
         transform.setRotation(q);
-        tf_broadcaster_.sendTransform(tf::StampedTransform(transform, feat_header.stamp, fixed_frame_, base_frame_));
+        tf_broadcaster_.sendTransform(tf::StampedTransform(transform, feat_header.stamp, params->fixed_frame_, params->base_frame_));
       }
     } 
 
@@ -304,7 +258,7 @@ void LaserOdometer::computeLocalMap(PointCloud::Ptr& local_map) {
 
   ROS_DEBUG("Total points: %lu", total_points->size());
 
-  if (nframes == prev_frames_) {
+  if (nframes == params->local_map_size_) {
       // Voxelize the points
       pcl::VoxelGrid<Point> voxel_filter;
       voxel_filter.setLeafSize(0.15, 0.15, 0.15);
@@ -368,7 +322,7 @@ void LaserOdometer::addEdgeConstraints(const PointCloud::Ptr& edges,
                              local_map->points[indices[1]].y,
                              local_map->points[indices[1]].z);
 
-        ceres::CostFunction* cost_function = Point2LineFactor::create(curr_point, pt_a, pt_b, min_range_, max_range_);
+        ceres::CostFunction* cost_function = Point2LineFactor::create(curr_point, pt_a, pt_b, params->min_range_, params->max_range_);
         problem->AddResidualBlock(cost_function, loss, param_q, param_t);
       }
     }
@@ -382,15 +336,12 @@ bool LaserOdometer::getBaseToLaserTf (const std::string& frame_id) {
   tf::TransformListener tf_listener;
   tf::StampedTransform laser_to_base_tf;
 
-  try
-  {
+  try  {
     tf_listener.waitForTransform(
-      frame_id, base_frame_, ros::Time(0), ros::Duration(1.0));
+      frame_id, params->base_frame_, ros::Time(0), ros::Duration(1.0));
     tf_listener.lookupTransform (
-      frame_id, base_frame_, ros::Time(0), laser_to_base_tf);
-  }
-  catch (tf::TransformException &ex)
-  {
+      frame_id, params->base_frame_, ros::Time(0), laser_to_base_tf);
+  } catch (tf::TransformException &ex) {
     ROS_WARN("Could not get initial transform from base to laser frame, %s", ex.what());
     return false;
   }

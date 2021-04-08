@@ -52,6 +52,7 @@
 // Liodom
 #include <liodom/defs.h>
 #include <liodom/factors.hpp>
+#include <liodom/params.h>
 #include <liodom/shared_data.h>
 #include <liodom/stats.h>
 
@@ -80,38 +81,26 @@ class LaserOdometer {
   explicit LaserOdometer(const ros::NodeHandle& nh);
   virtual ~LaserOdometer();
 
-  void initialize();
   void operator()(std::atomic<bool>& running);
 
  private:
   // ROS variables
-  ros::NodeHandle nh_;  
+  ros::NodeHandle nh_;
   ros::Publisher odom_pub_;
   ros::Publisher twist_pub_;
-  tf::TransformBroadcaster tf_broadcaster_;
-
-  // Params
-  double min_range_;
-  double max_range_;  
-  size_t prev_frames_;
-  bool save_results_;
-  std::string results_dir_;
-  std::string fixed_frame_;
-  std::string base_frame_;
-  std::string laser_frame_;
+  tf::TransformBroadcaster tf_broadcaster_;  
 
   // Variables
   bool init_;
   Eigen::Isometry3d prev_odom_;
   Eigen::Isometry3d odom_;
-  double prev_stamp_;
-  LocalMapManager lmap_manager;
+  double prev_stamp_;  
   double param_q[4] = {0, 0, 0, 1};
   double param_t[3] = {0, 0, 0};
-  // Eigen::Map<Eigen::Quaterniond> q_curr;
-  // Eigen::Map<Eigen::Vector3d> t_curr;
   SharedData* sdata;
   Stats* stats;
+  Params* params;
+  LocalMapManager lmap_manager;
   Eigen::Isometry3d laser_to_base_;
 
   void computeLocalMap(PointCloud::Ptr& local_map);
