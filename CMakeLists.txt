@@ -41,6 +41,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   tf
   eigen_conversions
+  tf_conversions
+  pcl_conversions
 )
 
 # Other packages
@@ -58,7 +60,7 @@ message(STATUS "Compiler flags: ${CMAKE_CXX_FLAGS}")
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
-  CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs nav_msgs sensor_msgs tf eigen_conversions
+  CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs nav_msgs sensor_msgs tf eigen_conversions tf_conversions pcl_conversions
   DEPENDS EIGEN3 PCL CERES
 )
 
@@ -91,3 +93,12 @@ target_link_libraries(liodom_node
                       ${PCL_LIBRARIES}
                       ${CERES_LIBRARIES}
                       )
+
+#### Laser Mapping
+add_executable(liodom_mapping
+               src/map.cc
+               src/liodom_mapping_node.cc)
+target_link_libraries(liodom_mapping
+               ${PCL_LIBRARIES}
+               ${catkin_LIBRARIES} 
+               )
