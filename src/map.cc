@@ -138,4 +138,54 @@ PointCloud::Ptr Map::getMap() {
   return total_points;
 }
 
+PointCloud::Ptr Map::getLocalMap(const Eigen::Isometry3d& pose, int cells_xy, int cells_z) {
+  // Computing the voxel corresponding to the current position
+  // Compute the corresponding cell
+  int x = pose.translation().x();
+  int voxel_x = int(std::floor(x * inv_voxel_xysize_) * voxel_xysize_ + (voxel_xysize_half_));
+
+  int y = pose.translation().y();
+  int voxel_y = int(std::floor(y * inv_voxel_xysize_) * voxel_xysize_ + (voxel_xysize_half_));
+
+  int z = pose.translation().z();
+  int voxel_z = int(std::floor(z * inv_voxel_zsize_) * voxel_zsize_ + (voxel_zsize_half_));
+
+  // Final local map
+  PointCloud::Ptr total_points(new PointCloud);
+
+  // Getting points on neighbouring voxels of x and y
+  int init_x = voxel_x - cells_xy * voxel_xysize_;
+  int end_x =  voxel_x + cells_xy * voxel_xysize_;
+  int init_y = voxel_y - cells_xy * voxel_xysize_;
+  int end_y =  voxel_y + cells_xy * voxel_xysize_;
+  // Get PCs from every cell on x axis
+  for (int i = init_x; i <= end_x; i += voxel_xysize_) {
+    for (int j = init_y; j <= end_y; j += voxel_xysize_) {
+      // Check if the voxel is already in the map
+      HashKey key(i, j, voxel_z);
+      Cell* cell;
+      if (cells_.find(key) != cells_.end()) {
+        cell = cells_[key];
+        *total_points += *(cell->getPoints());
+      }
+    }        
+  }
+    
+  // Getting points on neighbouring voxels of z
+  int init_z = voxel_z - cells_z * voxel_xysize_;
+  int end_z  =  voxel_z + cells_z * voxel_xysize_;
+  // Get PCs from every cell on x axis
+  for (int i = init_z; i <= end_z; i += voxel_zsize_) {
+    // Check if the voxel is already in the map
+    HashKey key(voxel_x, voxel_y, i);
+    Cell* cell;
+    if (cells_.find(key) != cells_.end()) {
+      cell = cells_[key];
+      *total_points += *(cell->getPoints());
+    }    
+  }
+
+  return total_points;
+}
+
 }  // namespace liodom
