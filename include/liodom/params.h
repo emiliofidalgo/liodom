@@ -44,6 +44,7 @@ class Params {
     std::string base_frame_;
     std::string laser_frame_;
     bool use_imu_;
+    bool mapping_;
 
     // Methods
     static Params* getInstance();

@@ -88,4 +88,20 @@ bool SharedData::popFeatures(PointCloud::Ptr& feat_out, std_msgs::Header& header
   return response;
 }
 
+void SharedData::setLocalMap(const PointCloud::Ptr& map_in) {
+  map_mutex_.lock();
+  local_map_->clear();
+  pcl::copyPointCloud(*map_in, *local_map_);
+  map_mutex_.unlock();
+}
+
+void SharedData::getLocalMap(PointCloud::Ptr& map_out) {
+  map_mutex_.lock();
+  if (local_map_->size() > 0) {
+    map_out->clear();
+    pcl::copyPointCloud(*local_map_, *map_out);
+  }
+  map_mutex_.unlock();  
+}
+
 }  // namespace liodom

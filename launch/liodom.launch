@@ -2,10 +2,12 @@
 <launch>
   
   <arg name="viz" default="false" />
+  <arg name="mapping" default="false" />
 
   <param name="use_sim_time" value="true"/>
   <env name="ROSCONSOLE_CONFIG_FILE" value="$(find liodom)/config/logging.conf" />
 
+  <!-- Liodom -->
   <node pkg="liodom"
         type="liodom_node"
         name="liodom"
@@ -23,12 +25,34 @@
     <param name="base_frame" type="string" value="base_link" />
     <param name="laser_frame" type="string" value="laser" />
     <param name="use_imu" type="bool" value="false" />
-    <param name="save_results" type="bool" value="true" />
-    <param name="save_results_dir" type="string" value="/home/emilio/Escritorio/results/" />    
+    <param name="save_results" type="bool" value="true" />    
+    <param name="save_results_dir" type="string" value="/home/emilio/Escritorio/results/" />
+    <param name="mapping" type="bool" value="$(arg mapping)" />
     
     <remap from="~points" to="/kitti/velo/pointcloud" />
+    <remap from="~map" to="/liodom_mapper/map_local" />
 
   </node>
+
+  <!-- Mapping, if required -->
+  <group if="$(arg mapping)">
+    <node pkg="liodom"
+        type="liodom_mapping"
+        name="liodom_mapper"
+        output="screen"
+        respawn="false">
+
+    <param name="voxel_xysize" type="double" value="20.0" />
+    <param name="voxel_zsize" type="double" value="25.0" />
+    <param name="resolution" type="double" value="0.4" />    
+    <param name="cells_xy" type="int" value="2" />
+    <param name="cells_z" type="int" value="1" />
+    <param name="fixed_frame" type="string" value="world" />
+    
+    <remap from="~points" to="/liodom/edges" />
+    
+  </node>
+  </group>
 
   <node pkg="tf"
         type="static_transform_publisher"

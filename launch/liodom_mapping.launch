@@ -12,9 +12,11 @@
         output="screen"
         respawn="false">
 
-    <param name="voxel_xysize" type="double" value="40.0" />
-    <param name="voxel_zsize" type="double" value="50.0" />
-    <param name="resolution" type="double" value="0.8" />    
+    <param name="voxel_xysize" type="double" value="20.0" />
+    <param name="voxel_zsize" type="double" value="25.0" />
+    <param name="resolution" type="double" value="0.4" />
+    <param name="cells_xy" type="int" value="2" />
+    <param name="cells_z" type="int" value="1" />    
     <param name="fixed_frame" type="string" value="world" />
     
     <remap from="~points" to="/liodom/edges" />

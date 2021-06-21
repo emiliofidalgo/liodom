@@ -103,14 +103,14 @@ class LaserOdometer {
   LocalMapManager lmap_manager;
   Eigen::Isometry3d laser_to_base_;
 
-  void computeLocalMap(PointCloud::Ptr& local_map);
+  void computeLocalMap(PointCloud::Ptr& local_map_gen, PointCloud::Ptr& local_map_rec);
   void addEdgeConstraints(const PointCloud::Ptr& edges,
-                          const PointCloud::Ptr& local_map,
-                          const pcl::KdTreeFLANN<Point>::Ptr& tree,
+                          const PointCloud::Ptr& local_map_gen,
+                          const PointCloud::Ptr& local_map_rec,
                           const Eigen::Isometry3d& pose,
                           ceres::Problem* problem,
                           ceres::LossFunction* loss);
-  bool getBaseToLaserTf (const std::string& frame_id);
+  bool getBaseToLaserTf(const std::string& frame_id);
 };
 
 }  // namespace liodom

@@ -26,6 +26,8 @@
 #include <ros/ros.h>
 #include <std_msgs/Header.h>
 
+#include <pcl/common/io.h>
+
 #include <liodom/defs.h>
 
 namespace liodom {
@@ -43,6 +45,9 @@ class SharedData {
     void pushFeatures(const PointCloud::Ptr& feat_in, std_msgs::Header& header);
     bool popFeatures(PointCloud::Ptr& feat_out, std_msgs::Header& header);
 
+    void setLocalMap(const PointCloud::Ptr& map_in);
+    void getLocalMap(PointCloud::Ptr& map_out);
+
   private:
     // Controlling the singleton
     static SharedData* pinstance_;
@@ -58,8 +63,12 @@ class SharedData {
     std::queue<PointCloud::Ptr> feat_buf_;
     std::queue<std_msgs::Header> feat_header_;
 
+    // Local Map control
+    std::mutex map_mutex_;
+    PointCloud::Ptr local_map_;
+
   protected:
-    SharedData() {};
+    SharedData() : local_map_(new PointCloud) {};
     ~SharedData() {
       if (pinstance_ != nullptr) {
         delete pinstance_;

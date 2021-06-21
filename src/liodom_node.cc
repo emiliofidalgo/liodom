@@ -48,6 +48,15 @@ void lidarClb(const sensor_msgs::PointCloud2ConstPtr& lidar_msg) {
   sdata->pushPointCloud(pc_new, lidar_msg->header);
 }
 
+void mapClb(const sensor_msgs::PointCloud2ConstPtr& map_msg) {
+  
+  // Converting ROS message to PCL
+  liodom::PointCloud::Ptr pc_new(new liodom::PointCloud);
+  pcl::fromROSMsg(*map_msg, *pc_new);
+
+  sdata->setLocalMap(pc_new);
+}
+
 int main(int argc, char** argv) {
   
   // Initializing node
@@ -74,7 +83,8 @@ int main(int argc, char** argv) {
   stats = liodom::Stats::getInstance();
 
   // Subscribers  
-  ros::Subscriber pc_subs_ = nh.subscribe("points", 1000, lidarClb);
+  ros::Subscriber pc_subs_  = nh.subscribe("points", 1000, lidarClb);
+  ros::Subscriber map_subs_ = nh.subscribe("map", 1000, mapClb);
 
   // Receiving messages
   ros::spin();

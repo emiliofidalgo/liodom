@@ -95,6 +95,10 @@ void Params::readParams(const ros::NodeHandle& nh) {
   // Use IMU
   nh.param("use_imu", use_imu_, false);
   ROS_INFO("Use IMU: %s", use_imu_ ? "Yes" : "No");
+
+  // Mapping
+  nh.param("mapping", mapping_, false);
+  ROS_INFO("Mapping: %s", mapping_ ? "Yes" : "No");
 }
 
 }  // namespace liodom
