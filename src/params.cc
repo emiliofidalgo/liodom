@@ -99,6 +99,10 @@ void Params::readParams(const ros::NodeHandle& nh) {
   // Mapping
   nh.param("mapping", mapping_, false);
   ROS_INFO("Mapping: %s", mapping_ ? "Yes" : "No");
+
+  // Publish TF
+  nh.param("publish_tf", publish_tf_, true);
+  ROS_INFO("Publish TF: %s", publish_tf_ ? "Yes" : "No");
 }
 
 }  // namespace liodom

@@ -236,11 +236,13 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         twist_pub_.publish(twist_msg);
 
         //Publishing TF
-        tf::Transform transform;
-        transform.setOrigin(tf::Vector3(t_current.x(), t_current.y(), t_current.z()));
-        tf::Quaternion q(q_current.x(), q_current.y(), q_current.z(), q_current.w());
-        transform.setRotation(q);
-        tf_broadcaster_.sendTransform(tf::StampedTransform(transform, feat_header.stamp, params->fixed_frame_, params->base_frame_));
+        if (params->publish_tf_) {
+          tf::Transform transform;
+          transform.setOrigin(tf::Vector3(t_current.x(), t_current.y(), t_current.z()));
+          tf::Quaternion q(q_current.x(), q_current.y(), q_current.z(), q_current.w());
+          transform.setRotation(q);
+          tf_broadcaster_.sendTransform(tf::StampedTransform(transform, feat_header.stamp, params->fixed_frame_, params->base_frame_));
+        }
       }
     } 
 

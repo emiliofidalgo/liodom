@@ -28,6 +28,7 @@
     <param name="save_results" type="bool" value="true" />    
     <param name="save_results_dir" type="string" value="/home/emilio/Escritorio/results/" />
     <param name="mapping" type="bool" value="$(arg mapping)" />
+    <param name="publish_tf" type="bool" value="true" />
     
     <remap from="~points" to="/kitti/velo/pointcloud" />
     <remap from="~map" to="/liodom_mapper/map_local" />
