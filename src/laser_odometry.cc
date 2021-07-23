@@ -94,8 +94,10 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
     PointCloud::Ptr feats(new PointCloud);
     std_msgs::Header feat_header;
     
-    if (sdata->popFeatures(feats, feat_header)) {
+    if (sdata->popFeatures(feats, feat_header)) {    
       if (!init_) {
+      
+        auto start_t = Clock::now();
 
         // cache the static tf from base to laser
         if (params->laser_frame_ == "") {
@@ -111,10 +113,14 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         lmap_manager.addPointCloud(feats);
         init_ = true;
         prev_stamp_ = feat_header.stamp.toSec();
+        
+        auto end_t = Clock::now();
 
         // Register stats
         if (params->save_results_) {
           stats->addPose(odom_.matrix());
+          stats->addLaserOdometryTime(start_t, end_t);
+          stats->stopFrame(end_t);          
         }
 
       } else {
@@ -189,6 +195,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         if (params->save_results_) {
           stats->addPose(odom_.matrix());
           stats->addLaserOdometryTime(start_t, end_t);
+          stats->stopFrame(end_t);
         }
 
         // Transform to base_link frame before publication

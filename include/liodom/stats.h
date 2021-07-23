@@ -22,6 +22,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <queue>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -47,6 +48,8 @@ class Stats {
     void addPose(const Eigen::Matrix4d& pose);
     void addFeatureExtractionTime(const Clock::time_point& start, const Clock::time_point& end);
     void addLaserOdometryTime(const Clock::time_point& start, const Clock::time_point& end);
+    void startFrame(const Clock::time_point& start);
+    void stopFrame(const Clock::time_point& stop);
     void writeResults(const std::string& dir);
 
   private:
@@ -58,6 +61,11 @@ class Stats {
     std::vector<Eigen::Matrix4d> poses_;
     std::vector<double> feat_extr_;
     std::vector<double> laser_odom_;
+
+    // Total times
+    std::mutex frame_mutex_;
+    std::queue<Clock::time_point> start_times_;
+    std::vector<double> frame_times_;
 
   protected:
     Stats() {};

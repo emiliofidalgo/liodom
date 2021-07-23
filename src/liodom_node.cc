@@ -44,6 +44,11 @@ void lidarClb(const sensor_msgs::PointCloud2ConstPtr& lidar_msg) {
   
   ROS_DEBUG("---");
   ROS_DEBUG("Initial cloud: %lu points", pc_new->points.size());
+  
+  if (params->save_results_) {
+    auto start = liodom::Clock::now();
+    stats->startFrame(start);
+  }
 
   sdata->pushPointCloud(pc_new, lidar_msg->header);
 }

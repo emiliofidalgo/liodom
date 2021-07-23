@@ -48,6 +48,24 @@ void Stats::addLaserOdometryTime(const Clock::time_point& start, const Clock::ti
   laser_odom_.push_back(diff);
 }
 
+void Stats::startFrame(const Clock::time_point& start) {
+  frame_mutex_.lock();
+  start_times_.push(start);
+  frame_mutex_.unlock();
+}	
+
+void Stats::stopFrame(const Clock::time_point& stop) {
+  frame_mutex_.lock();
+  if (!start_times_.empty()) {
+    Clock::time_point start = start_times_.front();
+    start_times_.pop();
+
+    double diff = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+    frame_times_.push_back(diff);
+  }
+  frame_mutex_.unlock();
+}
+
 void Stats::writeResults(const std::string& dir) {
   // Poses
   std::string poses_filename = dir + "poses.txt";
@@ -89,6 +107,15 @@ void Stats::writeResults(const std::string& dir) {
     lodom_file << laser_odom_[lodom_ind] << std::endl;
   }
   lodom_file.close();
+  
+  // Total times
+  std::string total_filename = dir + "frame_times.txt";
+  std::ofstream total_file;
+  total_file.open(total_filename.c_str(), std::ios::out | std::ios::trunc);
+  for (size_t total_ind = 0; total_ind < frame_times_.size(); total_ind++) {
+    total_file << frame_times_[total_ind] << std::endl;
+  }
+  total_file.close();
 }
 
 }  // namespace liodom
