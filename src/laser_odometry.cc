@@ -80,6 +80,8 @@ LaserOdometer::LaserOdometer(const ros::NodeHandle& nh) :
   lmap_manager(params->local_map_size_) {
 
   // Publishers
+  // Publishers
+  pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>("odom", 10);
   twist_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("twist", 10);
 }
@@ -241,6 +243,15 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         twist_msg.header.stamp = feat_header.stamp;
         twist_msg.twist = laser_odom_msg.twist.twist;
         twist_pub_.publish(twist_msg);
+
+        // Publishing edges
+        // Publishing edges if there is someone listening
+        if (pc_edges_pub_.getNumSubscribers() > 0) {
+          sensor_msgs::PointCloud2 edges_msg;
+          pcl::toROSMsg(*feats, edges_msg);
+          edges_msg.header = feat_header;
+          pc_edges_pub_.publish(edges_msg);
+        }
 
         //Publishing TF
         if (params->publish_tf_) {

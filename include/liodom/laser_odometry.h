@@ -86,6 +86,7 @@ class LaserOdometer {
  private:
   // ROS variables
   ros::NodeHandle nh_;
+  ros::Publisher pc_edges_pub_;
   ros::Publisher odom_pub_;
   ros::Publisher twist_pub_;
   tf::TransformBroadcaster tf_broadcaster_;  

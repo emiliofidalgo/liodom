@@ -31,10 +31,7 @@ FeatureExtractor::FeatureExtractor(const ros::NodeHandle& nh) :
     int max_ncores = omp_get_max_threads() - 5;
     if (max_ncores > 1) {
       ncores_ = max_ncores;
-    }
-
-    // Publishers
-    pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
+    }    
 }
 
 FeatureExtractor::~FeatureExtractor() {  
@@ -68,15 +65,7 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
       }
 
       // Send extracted features for laser odometry
-      sdata->pushFeatures(pc_edges, pc_header);
-
-      // Publishing edges if there is someone listening
-      if (pc_edges_pub_.getNumSubscribers() > 0) {
-        sensor_msgs::PointCloud2 edges_msg;
-        pcl::toROSMsg(*pc_edges, edges_msg);
-        edges_msg.header = pc_header;
-        pc_edges_pub_.publish(edges_msg);
-      }
+      sdata->pushFeatures(pc_edges, pc_header);      
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2));

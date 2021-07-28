@@ -68,8 +68,7 @@ class FeatureExtractor {
 
   private:
     // ROS variables
-    ros::NodeHandle nh_;
-    ros::Publisher pc_edges_pub_;
+    ros::NodeHandle nh_;    
 
     // Variables
     bool picked_[400000];           
