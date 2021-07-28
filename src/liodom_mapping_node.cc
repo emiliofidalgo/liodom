@@ -30,6 +30,7 @@
 // Mapper
 liodom::Map* mapper;
 std::string fixed_frame;
+std::string base_frame;
 int cells_xy;
 int cells_z;
 
@@ -51,8 +52,10 @@ void lidarClb(const sensor_msgs::PointCloud2ConstPtr& lidar_msg) {
   // Waiting for the current position
   tf::StampedTransform transform;
   try {
-    tf_listener->waitForTransform(fixed_frame, lidar_msg->header.frame_id, lidar_msg->header.stamp, ros::Duration(5.0));
-    tf_listener->lookupTransform(fixed_frame, lidar_msg->header.frame_id, lidar_msg->header.stamp, transform);
+    tf_listener->waitForTransform(fixed_frame, base_frame, lidar_msg->header.stamp, ros::Duration(5.0));
+    //tf_listener->waitForTransform(fixed_frame, base_frame, ros::Time(0), ros::Duration(5.0));
+    tf_listener->lookupTransform(fixed_frame, base_frame, lidar_msg->header.stamp, transform);
+    //tf_listener->lookupTransform(fixed_frame, base_frame, ros::Time(0), transform);
   } catch (tf::TransformException& ex) {
     ROS_ERROR("%s",ex.what());
     ros::Duration(1.0).sleep();    
@@ -118,6 +121,7 @@ int main(int argc, char** argv) {
   ROS_INFO("Resolution: %.2f", reso);
 
   nh.param("fixed_frame", fixed_frame, std::string("world"));
+  nh.param("base_frame", base_frame, std::string("base_link"));
 
   nh.param("cells_xy", cells_xy, 2);
   ROS_INFO("Local Map Cells XY: %i", cells_xy);

@@ -49,6 +49,7 @@
     <param name="cells_xy" type="int" value="2" />
     <param name="cells_z" type="int" value="1" />
     <param name="fixed_frame" type="string" value="map" />
+    <param name="base_frame" type="string" value="base_link" />
     
     <remap from="~points" to="/liodom/edges" />
 
