@@ -39,3 +39,6 @@ For an example of use, see the launch file `launch/liodom.launch`.
 # Contact
 
 If you have problems or questions using this code, please contact the author (emilio.garcia@uib.es). [Feature requests](http://github.com/emiliofidalgo/liodom/issues) and [contributions](http://github.com/emiliofidalgo/liodom/pulls) are totally welcome.
+
+# Acknowledgements
+Thanks to the authors of [A-LOAM](https://github.com/HKUST-Aerial-Robotics/A-LOAM) and [F-LOAM](https://github.com/wh200720041/floam) for publishing their codes. Some parts of this library are inspired from them.
