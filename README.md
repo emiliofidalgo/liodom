@@ -19,10 +19,10 @@ Submitted to a journal for possible publication<br/>
 # Installation
 
 ## Prerequisites
-- Tested on [Ubuntu 64-bit 20.04](http://ubuntu.com/download/desktop).
-- Tested on [ROS Noetic](http://wiki.ros.org/ROS/Installation).
-- [Ceres](http://ceres-solver.org/installation.html).
-- [PCL](http://pointclouds.org/).
+- Tested on [Ubuntu 64-bit 20.04](http://ubuntu.com/download/desktop)
+- Tested on [ROS Noetic](http://wiki.ros.org/ROS/Installation)
+- [Ceres](http://ceres-solver.org/installation.html)
+- [PCL](http://pointclouds.org/)
 
 ## Build
 ```
