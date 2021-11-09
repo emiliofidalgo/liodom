@@ -14,7 +14,19 @@ The details of the algorithm are explained in the following publication:
 
 **LiODOM: Adaptive Local Mapping for Robust LiDAR-Only Odometry**<br/>
 Emilio Garcia-Fidalgo, Joan P. Company-Corcoles, Francisco Bonnin-Pascual and Alberto Ortiz<br/>
-Submitted to a journal for possible publication<br/>
+Submitted to IEEE RA-L, under review<br/>
+
+A preprinted version can be found [here](https://arxiv.org/abs/2111.03393). If you use this code, please cite:
+```
+@misc{Garcia-Fidalgo2021liodom,
+      title={{LiODOM: Adaptive Local Mapping for Robust LiDAR-Only Odometry}}, 
+      author={Emilio Garcia-Fidalgo and Joan P. Company-Corcoles and Francisco Bonnin-Pascual and Alberto Ortiz},
+      year={2021},
+      eprint={2111.03393},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO}
+}
+```
 
 # Installation
 
