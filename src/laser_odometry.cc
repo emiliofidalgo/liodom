@@ -193,6 +193,16 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
 
         auto end_t = Clock::now();
 
+	// Measuring the processing frequency
+	ros::Time end = ros::Time::now();
+	ros::Duration diff = end - feat_header.stamp;
+	auto hz = 1.0 / diff.toSec();
+	ROS_DEBUG("Processing frequency: %f", hz);
+
+	if (hz < 15.0) {
+	  ROS_WARN("Processing frequency lower than expected: %f", hz);
+	}
+
         // Register stats
         if (params->save_results_) {
           stats->addPose(odom_.matrix());

@@ -88,8 +88,8 @@ int main(int argc, char** argv) {
   stats = liodom::Stats::getInstance();
 
   // Subscribers  
-  ros::Subscriber pc_subs_  = nh.subscribe("points", 1000, lidarClb);
-  ros::Subscriber map_subs_ = nh.subscribe("map", 1000, mapClb);
+  ros::Subscriber pc_subs_  = nh.subscribe("points", 1, lidarClb);
+  ros::Subscriber map_subs_ = nh.subscribe("map", 1, mapClb);
 
   // Receiving messages
   ros::spin();
