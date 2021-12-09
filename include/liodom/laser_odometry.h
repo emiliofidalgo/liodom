@@ -103,6 +103,13 @@ class LaserOdometer {
   Params* params;
   LocalMapManager lmap_manager;
   Eigen::Isometry3d laser_to_base_;
+  double in_freqs_[5];
+  double out_freqs_[5];
+  double mean_in_freq_;
+  double mean_out_freq_;
+  int num_freqs_;
+  double last_in_time_secs_;
+  double last_out_time_secs_;
 
   void computeLocalMap(PointCloud::Ptr& local_map_gen, PointCloud::Ptr& local_map_rec);
   void addEdgeConstraints(const PointCloud::Ptr& edges,

@@ -77,9 +77,18 @@ LaserOdometer::LaserOdometer(const ros::NodeHandle& nh) :
   sdata(SharedData::getInstance()),
   stats(Stats::getInstance()),
   params(Params::getInstance()),
-  lmap_manager(params->local_map_size_) {
+  lmap_manager(params->local_map_size_),
+  num_freqs_(0) {
 
-  // Publishers
+  for (int i = 0; i < 5; i++) {
+    in_freqs_[i] = 20.0; // 100/5
+    out_freqs_[i] = 20.0; // 100/5
+  }
+  mean_in_freq_ = 100.0; // high freq.
+  mean_out_freq_ = 100.0; // high freq.
+  last_in_time_secs_ = ros::Time::now().toSec();
+  last_out_time_secs_ = last_in_time_secs_;
+
   // Publishers
   pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>("odom", 10);
@@ -193,15 +202,33 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
 
         auto end_t = Clock::now();
 
-	// Measuring the processing frequency
-	ros::Time end = ros::Time::now();
-	ros::Duration diff = end - feat_header.stamp;
-	auto hz = 1.0 / diff.toSec();
-	ROS_DEBUG("Processing frequency: %f", hz);
+        // Measuring the processing frequency
+        // ros::Time end = ros::Time::now();
+        // ros::Duration diff = end - feat_header.stamp;
+        // auto hz = 1.0 / diff.toSec();
+        // ROS_DEBUG("Processing frequency: %f", hz);
 
-	if (hz < 15.0) {
-	  ROS_WARN("Processing frequency lower than expected: %f", hz);
-	}
+        // if (hz < 15.0) {
+        //   ROS_WARN("Processing frequency lower than expected: %f", hz);
+        // }
+        double now_secs = ros::Time::now().toSec();
+        mean_in_freq_ -= in_freqs_[num_freqs_];
+        in_freqs_[num_freqs_] = (1.0/(feat_header.stamp.toSec() - last_in_time_secs_))/5.0;
+        mean_in_freq_ += in_freqs_[num_freqs_];
+        last_in_time_secs_ = feat_header.stamp.toSec();
+
+        mean_out_freq_ -= out_freqs_[num_freqs_];
+        out_freqs_[num_freqs_] = (1.0/(now_secs - last_out_time_secs_))/5.0;
+        mean_out_freq_ += out_freqs_[num_freqs_];
+        last_out_time_secs_ = now_secs;
+
+        num_freqs_ ++;
+        num_freqs_ = num_freqs_ % 5;
+
+        ROS_DEBUG("Output frequency: %2.2f", mean_out_freq_);
+        if (mean_out_freq_ < mean_in_freq_ * 0.8) {
+          ROS_WARN("Output frequency too low: %2.2f << %2.2f", mean_out_freq_, mean_in_freq_);
+        }
 
         // Register stats
         if (params->save_results_) {
