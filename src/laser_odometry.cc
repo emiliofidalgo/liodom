@@ -202,15 +202,6 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
 
         auto end_t = Clock::now();
 
-        // Measuring the processing frequency
-        // ros::Time end = ros::Time::now();
-        // ros::Duration diff = end - feat_header.stamp;
-        // auto hz = 1.0 / diff.toSec();
-        // ROS_DEBUG("Processing frequency: %f", hz);
-
-        // if (hz < 15.0) {
-        //   ROS_WARN("Processing frequency lower than expected: %f", hz);
-        // }
         double now_secs = ros::Time::now().toSec();
         mean_in_freq_ -= in_freqs_[num_freqs_];
         in_freqs_[num_freqs_] = (1.0/(feat_header.stamp.toSec() - last_in_time_secs_))/5.0;
@@ -227,7 +218,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
 
         ROS_DEBUG("Output frequency: %2.2f", mean_out_freq_);
         if (mean_out_freq_ < mean_in_freq_ * 0.8) {
-          ROS_WARN("Output frequency too low: %2.2f << %2.2f", mean_out_freq_, mean_in_freq_);
+          ROS_WARN("Output frequency too low: %2.2f (in: %2.2f)", mean_out_freq_, mean_in_freq_);
         }
 
         // Register stats
