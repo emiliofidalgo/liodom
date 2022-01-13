@@ -48,6 +48,9 @@ class SharedData {
     void setLocalMap(const PointCloud::Ptr& map_in);
     void getLocalMap(PointCloud::Ptr& map_out);
 
+    void setLastIMUOri(Eigen::Quaterniond& imu_ori);
+    void getLastIMUOri(Eigen::Quaterniond& imu_ori);
+
   private:
     // Controlling the singleton
     static SharedData* pinstance_;
@@ -66,6 +69,11 @@ class SharedData {
     // Local Map control
     std::mutex map_mutex_;
     PointCloud::Ptr local_map_;
+
+    // Last IMU control
+    std::mutex imu_mutex_;
+    Eigen::Quaterniond last_IMU_ori_;
+    
 
   protected:
     SharedData() : local_map_(new PointCloud) {};

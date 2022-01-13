@@ -27,6 +27,7 @@
 #include <pcl/point_types.h>
 
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 namespace liodom {
 

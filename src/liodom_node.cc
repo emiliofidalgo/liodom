@@ -23,6 +23,7 @@
 // ROS
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Imu.h>
 
 // Liodom
 #include <liodom/defs.h>
@@ -62,6 +63,12 @@ void mapClb(const sensor_msgs::PointCloud2ConstPtr& map_msg) {
   sdata->setLocalMap(pc_new);
 }
 
+void imuClb(const sensor_msgs::ImuConstPtr& imu_msg) {
+
+  Eigen::Quaterniond new_ori(imu_msg->orientation.w, imu_msg->orientation.x, imu_msg->orientation.y, imu_msg->orientation.z);
+  sdata->setLastIMUOri(new_ori);
+}
+
 int main(int argc, char** argv) {
   
   // Initializing node
@@ -90,6 +97,10 @@ int main(int argc, char** argv) {
   // Subscribers  
   ros::Subscriber pc_subs_  = nh.subscribe("points", 1, lidarClb);
   ros::Subscriber map_subs_ = nh.subscribe("map", 1, mapClb);
+  ros::Subscriber imu_subs_;
+  if (params->use_imu_) {
+    imu_subs_ = nh.subscribe("imu", 1, imuClb);
+  }
 
   // Receiving messages
   ros::spin();

@@ -148,6 +148,39 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
         prev_odom_ = odom_;
         odom_ = pred_odom;
 
+        if (params->use_imu_){
+
+          // 1.- get roll and pitch from IMU (frame baselink)
+          Eigen::Quaterniond imu_ori = Eigen::Quaterniond::Identity();
+          sdata->getLastIMUOri(imu_ori);
+          tf::Quaternion imu_quat(imu_ori.x(), imu_ori.y(), imu_ori.z(), imu_ori.w());
+          tf::Matrix3x3 imu_m(imu_quat);
+          double imu_roll, imu_pitch, imu_yaw;
+          imu_m.getRPY(imu_roll, imu_pitch, imu_yaw);
+
+          //2.- rotate odom to frame baselink and get the orientation
+          Eigen::Isometry3d odom_bl = odom_ * laser_to_base_;
+          Eigen::Quaterniond odom_ori_bl(odom_bl.rotation());
+          tf::Quaternion odom_bl_quat(odom_ori_bl.x(), odom_ori_bl.y(), odom_ori_bl.z(), odom_ori_bl.w());
+          tf::Matrix3x3 odom_bl_m(odom_bl_quat);
+          double odom_bl_roll, odom_bl_pitch, odom_bl_yaw;
+          odom_bl_m.getRPY(odom_bl_roll, odom_bl_pitch, odom_bl_yaw);
+
+          //ROS_INFO("roll %2.2f:%2.2f, pitch %2.2f:%2.2f, yaw %2.2f:%2.2f", imu_roll, odom_bl_roll, imu_pitch, odom_bl_pitch, imu_yaw, odom_bl_yaw);
+
+          //3.- overwrite roll and pitch
+          odom_bl_m.setRPY(imu_roll, imu_pitch, odom_bl_yaw);
+
+          //4.- fill the eigen structure with the new orientation
+          odom_bl_m.getRotation(odom_bl_quat);
+          odom_ori_bl = Eigen::Quaterniond(odom_bl_quat.w(), odom_bl_quat.x(), odom_bl_quat.y(), odom_bl_quat.z());
+          odom_bl.linear() = odom_ori_bl.toRotationMatrix();
+
+          //5.- rotate odom back to frame laser
+          odom_ = odom_bl * (laser_to_base_.inverse());
+
+        }
+
         // Updating the initial guess
         Eigen::Quaterniond q_curr(odom_.rotation());
         param_q[0] = q_curr.x();

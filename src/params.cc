@@ -76,7 +76,7 @@ void Params::readParams(const ros::NodeHandle& nh) {
 
   // Base frame
   nh.param<std::string>("base_frame", base_frame_, "base_link");
-  ROS_INFO("Fixed frame: %s", base_frame_.c_str());
+  ROS_INFO("Base frame: %s", base_frame_.c_str());
 
   // Laser frame
   nh.param<std::string>("laser_frame", laser_frame_, "");

@@ -104,4 +104,16 @@ void SharedData::getLocalMap(PointCloud::Ptr& map_out) {
   map_mutex_.unlock();  
 }
 
+void SharedData::setLastIMUOri(Eigen::Quaterniond& imu_ori) {
+  imu_mutex_.lock();
+  last_IMU_ori_ = imu_ori;
+  imu_mutex_.unlock();
+
+}
+void SharedData::getLastIMUOri(Eigen::Quaterniond& imu_ori){
+  imu_mutex_.lock();
+  imu_ori = last_IMU_ori_;
+  imu_mutex_.unlock();
+}
+
 }  // namespace liodom
