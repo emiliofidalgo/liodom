@@ -44,13 +44,13 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
     PointCloud::Ptr pc_curr;
     std_msgs::Header pc_header;
     
-    if (sdata->popPointCloud(pc_curr, pc_header)) {
-
-      auto start_t = Clock::now();
+    if (sdata->popPointCloud(pc_curr, pc_header)) {      
 
       // Split the pointcloud into scan_lines_ scans
       std::vector<PointCloud::Ptr> scans;
       splitPointCloud(pc_curr, scans);
+
+      auto start_t = Clock::now();
 
       // Extracting features from each scan
       PointCloud::Ptr pc_edges(new PointCloud);
@@ -62,6 +62,7 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
       // Register stats
       if (params->save_results_) {
         stats->addFeatureExtractionTime(start_t, end_t);
+        stats->addNumOfFeats(pc_edges->points.size());
       }
 
       // Send extracted features for laser odometry

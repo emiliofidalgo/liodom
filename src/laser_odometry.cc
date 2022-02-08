@@ -106,9 +106,7 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
     std_msgs::Header feat_header;
     
     if (sdata->popFeatures(feats, feat_header)) {    
-      if (!init_) {
-      
-        auto start_t = Clock::now();
+      if (!init_) {        
 
         // cache the static tf from base to laser
         if (params->laser_frame_ == "") {
@@ -120,6 +118,8 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
           ROS_WARN("Skipping point_cloud");
           return;
         }
+
+        auto start_t = Clock::now();
 
         lmap_manager.addPointCloud(feats);
         init_ = true;

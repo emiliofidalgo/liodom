@@ -48,6 +48,7 @@ class Stats {
     void addPose(const Eigen::Matrix4d& pose);
     void addFeatureExtractionTime(const Clock::time_point& start, const Clock::time_point& end);
     void addLaserOdometryTime(const Clock::time_point& start, const Clock::time_point& end);
+    void addNumOfFeats(const size_t& nfeats);
     void startFrame(const Clock::time_point& start);
     void stopFrame(const Clock::time_point& stop);
     void writeResults(const std::string& dir);
@@ -61,6 +62,7 @@ class Stats {
     std::vector<Eigen::Matrix4d> poses_;
     std::vector<double> feat_extr_;
     std::vector<double> laser_odom_;
+    std::vector<size_t> num_of_features_;
 
     // Total times
     std::mutex frame_mutex_;

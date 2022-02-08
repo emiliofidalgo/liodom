@@ -48,6 +48,10 @@ void Stats::addLaserOdometryTime(const Clock::time_point& start, const Clock::ti
   laser_odom_.push_back(diff);
 }
 
+void Stats::addNumOfFeats(const size_t& nfeats) {
+  num_of_features_.push_back(nfeats);
+}
+
 void Stats::startFrame(const Clock::time_point& start) {
   frame_mutex_.lock();
   start_times_.push(start);
@@ -107,6 +111,15 @@ void Stats::writeResults(const std::string& dir) {
     lodom_file << laser_odom_[lodom_ind] << std::endl;
   }
   lodom_file.close();
+
+  // Number of features
+  std::string nfeats_filename = dir + "nfeats.txt";
+  std::ofstream nfeats_file;
+  nfeats_file.open(nfeats_filename.c_str(), std::ios::out | std::ios::trunc);
+  for (size_t nfeats_ind = 0; nfeats_ind < num_of_features_.size(); nfeats_ind++) {
+    nfeats_file << num_of_features_[nfeats_ind] << std::endl;
+  }
+  nfeats_file.close();
   
   // Total times
   std::string total_filename = dir + "frame_times.txt";
