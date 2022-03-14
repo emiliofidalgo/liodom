@@ -96,6 +96,10 @@ void Params::readParams(const ros::NodeHandle& nh) {
   nh.param("use_imu", use_imu_, false);
   ROS_INFO("Use IMU: %s", use_imu_ ? "Yes" : "No");
 
+  // Use Z
+  nh.param("use_z", use_z_, false);
+  ROS_INFO("Use Z: %s", use_z_ ? "Yes" : "No");
+
   // Mapping
   nh.param("mapping", mapping_, false);
   ROS_INFO("Mapping: %s", mapping_ ? "Yes" : "No");

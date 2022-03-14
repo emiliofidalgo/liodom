@@ -24,6 +24,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Imu.h>
+#include <srv_mav_msgs/MAVVerticalState.h>
 
 // Liodom
 #include <liodom/defs.h>
@@ -69,6 +70,12 @@ void imuClb(const sensor_msgs::ImuConstPtr& imu_msg) {
   sdata->setLastIMUOri(new_ori);
 }
 
+void zClb(const srv_mav_msgs::MAVVerticalState::ConstPtr& height) {
+
+  double external_z = height->z;
+  sdata->setLastZ(external_z);
+}
+
 int main(int argc, char** argv) {
   
   // Initializing node
@@ -98,8 +105,14 @@ int main(int argc, char** argv) {
   ros::Subscriber pc_subs_  = nh.subscribe("points", 1, lidarClb);
   ros::Subscriber map_subs_ = nh.subscribe("map", 1, mapClb);
   ros::Subscriber imu_subs_;
+  ros::Subscriber z_subs_;
+
   if (params->use_imu_) {
     imu_subs_ = nh.subscribe("imu", 1, imuClb);
+  }
+
+  if (params->use_z_) {
+    z_subs_ = nh.subscribe("z", 1, zClb);
   }
 
   // Receiving messages

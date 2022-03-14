@@ -110,10 +110,24 @@ void SharedData::setLastIMUOri(Eigen::Quaterniond& imu_ori) {
   imu_mutex_.unlock();
 
 }
+
 void SharedData::getLastIMUOri(Eigen::Quaterniond& imu_ori){
   imu_mutex_.lock();
   imu_ori = last_IMU_ori_;
   imu_mutex_.unlock();
+}
+
+void SharedData::setLastZ(double& z) {
+  z_mutex_.lock();
+  last_Z_ = z;
+  z_mutex_.unlock();
+
+}
+
+void SharedData::getLastZ(double& z){
+  z_mutex_.lock();
+  z = last_Z_;
+  z_mutex_.unlock();
 }
 
 }  // namespace liodom

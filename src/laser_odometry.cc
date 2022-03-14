@@ -181,6 +181,15 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
 
         }
 
+        if (params->use_z_){
+
+          Eigen::Vector3d aux_trans = odom_.translation();
+          double external_z;
+          sdata->getLastZ(external_z);
+          odom_.translation() = Eigen::Vector3d(aux_trans.x(), aux_trans.y(), external_z);
+
+        }
+
         // Updating the initial guess
         Eigen::Quaterniond q_curr(odom_.rotation());
         param_q[0] = q_curr.x();

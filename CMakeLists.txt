@@ -39,6 +39,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
   sensor_msgs
+  srv_mav_msgs
   tf
   eigen_conversions
   tf_conversions
@@ -60,7 +61,7 @@ message(STATUS "Compiler flags: ${CMAKE_CXX_FLAGS}")
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
-  CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs nav_msgs sensor_msgs tf eigen_conversions tf_conversions pcl_conversions
+  CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs nav_msgs sensor_msgs srv_mav_msgs tf eigen_conversions tf_conversions pcl_conversions
   DEPENDS EIGEN3 PCL CERES
 )
 

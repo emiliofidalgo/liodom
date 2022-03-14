@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<launch>    
+
+    <param name="/use_sim_time" value="true" />
+
+    <!-- Lidar odometry -->
+    <node pkg="liodom"
+            type="liodom_node"
+            name="liodom_new"
+            output="screen"
+            respawn="false">
+
+        <param name="min_range" type="double" value="0.8" />
+        <param name="max_range" type="double" value="75.0" />
+        <param name="lidar_type" type="int" value="1" />
+        <param name="scan_lines" type="int" value="64" />
+        <param name="scan_regions" type="int" value="6" />
+        <param name="edges_per_region" type="int" value="7" />
+        <param name="prev_frames" type="int" value="5" />
+        <param name="fixed_frame" type="string" value="odom" />
+        <param name="base_frame" type="string" value="base_link" />
+        <param name="laser_frame" type="string" value="" />
+        <param name="use_imu" type="bool" value="true" />
+        <param name="use_z" type="bool" value="true" />
+        <param name="save_results" type="bool" value="false" />
+        <param name="save_results_dir" type="string" value="" />
+        <param name="mapping" type="bool" value="true" />
+        <param name="publish_tf" type="bool" value="false" /> <!-- published by ekf_local -->
+
+        <remap from="~points" to="/os_cloud/points" />
+        <remap from="~imu" to="/imu_conditioner/imu" />
+        <remap from="~z" to="/height_estimator/height" />
+        <remap from="~map" to="/liodom_mapper/map_local" />
+
+    </node>
+
+    <!-- Velocity Estimator -->
+    <!--node pkg="srv_mav_state_estimation"
+            type="velocity_est_node"
+            name="velocity_estimator"
+            output="screen"
+            respawn="true">
+
+        <param name="frequency" type="double" value="40.0" />
+        <param name="sigma_velocity" type="double" value="0.1" />
+        <param name="sigma_imu_acc" type="double" value="0.09" />
+        <param name="jerk" type="double" value="1.0" />
+        <param name="max_input_vel" type="double" value="2.2" />
+
+        <remap from="~imu" to="/imu_conditioner/imu" />
+        <remap from="~twist_in" to="/liodom/twist" />
+        <remap from="~height" to="/height_estimator/height" />
+    </node-->
+</launch>    

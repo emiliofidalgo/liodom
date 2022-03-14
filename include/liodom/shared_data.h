@@ -51,6 +51,9 @@ class SharedData {
     void setLastIMUOri(Eigen::Quaterniond& imu_ori);
     void getLastIMUOri(Eigen::Quaterniond& imu_ori);
 
+    void setLastZ(double& z);
+    void getLastZ(double& z);
+
   private:
     // Controlling the singleton
     static SharedData* pinstance_;
@@ -73,6 +76,10 @@ class SharedData {
     // Last IMU control
     std::mutex imu_mutex_;
     Eigen::Quaterniond last_IMU_ori_;
+
+    // Last Z control
+    std::mutex z_mutex_;
+    double last_Z_;
     
 
   protected:
