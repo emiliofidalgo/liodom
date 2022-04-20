@@ -75,9 +75,10 @@ struct HashKey {
     size_t operator()(const HashKey& k) const {
       size_t h1 = std::hash<int>()(k.x);
       size_t h2 = std::hash<int>()(k.y);
-      size_t h3 = std::hash<int>()(k.z);
-      // return (h1 ^ (h2 << 1)) ^ h3;
+      size_t h3 = std::hash<int>()(k.z);      
+      
       return (h1 ^ (h2 << 1)) ^ (h3 << 2);
+      //return h1 + h2 + h3;
     }
   };
 
@@ -98,6 +99,7 @@ class Map {
   void updateMap(const PointCloud::Ptr& pc_in, const Eigen::Isometry3d& pose);
   PointCloud::Ptr getMap();
   PointCloud::Ptr getLocalMap(const Eigen::Isometry3d& pose, int cells_xy = 2, int cells_z = 1);
+  double getMapBadness();
  private:
   double voxel_xysize_; // Assume the same size in X and Y dimensions
   double inv_voxel_xysize_;

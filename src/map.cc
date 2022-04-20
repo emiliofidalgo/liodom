@@ -188,4 +188,17 @@ PointCloud::Ptr Map::getLocalMap(const Eigen::Isometry3d& pose, int cells_xy, in
   return total_points;
 }
 
+// https://artificial-mind.net/blog/2021/10/09/unordered-map-badness
+double Map::getMapBadness() {
+  
+  auto const lambda = cells_.size() / double(cells_.bucket_count());
+
+  auto cost = 0.;
+  for (auto const& [k, _] : cells_)
+    cost += cells_.bucket_size(cells_.bucket(k));
+  cost /= cells_.size();
+
+  return std::max(0., cost / (1 + lambda) - 1);
+}
+
 }  // namespace liodom

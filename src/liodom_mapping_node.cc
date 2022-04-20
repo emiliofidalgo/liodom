@@ -97,8 +97,12 @@ void timerClb(const ros::WallTimerEvent&) {
     sensor_msgs::PointCloud2 cloud_msg;
     pcl::toROSMsg(*map, cloud_msg);
     cloud_msg.header.frame_id = fixed_frame;
-    pc_pub.publish(cloud_msg);
+    pc_pub.publish(cloud_msg);    
   }
+
+  // Showing current map badness
+  //double badness = mapper->getMapBadness();
+  //ROS_WARN("Map Badness: %f", badness);
 }
 
 int main(int argc, char** argv) {
@@ -138,9 +142,9 @@ int main(int argc, char** argv) {
   timer = nh.createWallTimer(ros::WallDuration(3.0), timerClb);
   // Listener
   tf_listener = new tf::TransformListener();
-
+  
   // Receiving messages
-  ros::spin();
+  ros::spin();  
   
   return 0;
 }
