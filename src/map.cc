@@ -188,17 +188,26 @@ PointCloud::Ptr Map::getLocalMap(const Eigen::Isometry3d& pose, int cells_xy, in
   return total_points;
 }
 
-// https://artificial-mind.net/blog/2021/10/09/unordered-map-badness
-double Map::getMapBadness() {
+double Map::getMapEntropy() {
+
+  double nelems = static_cast<double>(cells_.size());
+  //ROS_INFO("NELEMS %f", nelems);
   
-  auto const lambda = cells_.size() / double(cells_.bucket_count());
 
-  auto cost = 0.;
-  for (auto const& [k, _] : cells_)
-    cost += cells_.bucket_size(cells_.bucket(k));
-  cost /= cells_.size();
+  double h = 0.0;
+  for (size_t i = 0; i < cells_.bucket_count(); i++) {
+    // Compute the probability of each bucket
+    if (cells_.bucket_size(i) > 0) {
+      double p = cells_.bucket_size(i) / nelems;
+      //ROS_INFO("Bucket %i - Size %i", (int)i, (int)cells_.bucket_size(i));
 
-  return std::max(0., cost / (1 + lambda) - 1);
+      // Adding this entropy    
+      h += p * log(p);
+    }
+  }
+  h *= -1.0;
+
+  return h;
 }
 
 }  // namespace liodom

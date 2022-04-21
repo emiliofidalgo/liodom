@@ -99,7 +99,7 @@ class Map {
   void updateMap(const PointCloud::Ptr& pc_in, const Eigen::Isometry3d& pose);
   PointCloud::Ptr getMap();
   PointCloud::Ptr getLocalMap(const Eigen::Isometry3d& pose, int cells_xy = 2, int cells_z = 1);
-  double getMapBadness();
+  double getMapEntropy();
  private:
   double voxel_xysize_; // Assume the same size in X and Y dimensions
   double inv_voxel_xysize_;

@@ -101,8 +101,8 @@ void timerClb(const ros::WallTimerEvent&) {
   }
 
   // Showing current map badness
-  //double badness = mapper->getMapBadness();
-  //ROS_WARN("Map Badness: %f", badness);
+  //double h = mapper->getMapEntropy();
+  //ROS_WARN("Map Entropy: %f", h);
 }
 
 int main(int argc, char** argv) {
