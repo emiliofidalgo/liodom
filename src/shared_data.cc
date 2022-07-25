@@ -124,10 +124,22 @@ void SharedData::setLastZ(double& z) {
 
 }
 
-void SharedData::getLastZ(double& z){
+void SharedData::getLastZ(double& z) {
   z_mutex_.lock();
   z = last_Z_;
   z_mutex_.unlock();
+}
+
+void SharedData::setLastMAVStatus(uint8_t& st) {
+  mav_stat_mutex_.lock();
+  last_mav_status_ = st;
+  mav_stat_mutex_.unlock();
+}
+
+void SharedData::getLastMAVStatus(uint8_t& st) {
+  mav_stat_mutex_.lock();
+  st = last_mav_status_;
+  mav_stat_mutex_.unlock();
 }
 
 }  // namespace liodom

@@ -54,6 +54,9 @@ class SharedData {
     void setLastZ(double& z);
     void getLastZ(double& z);
 
+    void setLastMAVStatus(uint8_t& st);
+    void getLastMAVStatus(uint8_t& st);
+
   private:
     // Controlling the singleton
     static SharedData* pinstance_;
@@ -80,7 +83,10 @@ class SharedData {
     // Last Z control
     std::mutex z_mutex_;
     double last_Z_;
-    
+
+    // Last MAV status
+    std::mutex mav_stat_mutex_;
+    uint8_t last_mav_status_;    
 
   protected:
     SharedData() : local_map_(new PointCloud) {};

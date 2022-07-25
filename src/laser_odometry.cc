@@ -137,130 +137,143 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
       } else {
 
         auto start_t = Clock::now();
-
-        // Computing local map
-        PointCloud::Ptr local_map_rec(new PointCloud);
-        PointCloud::Ptr local_map_gen(new PointCloud);
-        computeLocalMap(local_map_gen, local_map_rec);        
-
-        // Predict the current pose
-        Eigen::Isometry3d pred_odom = odom_ * (prev_odom_.inverse() * odom_);
-        prev_odom_ = odom_;
-        odom_ = pred_odom;
-
-        if (params->use_imu_){
-
-          // 1.- get roll and pitch from IMU (frame baselink)
-          Eigen::Quaterniond imu_ori = Eigen::Quaterniond::Identity();
-          sdata->getLastIMUOri(imu_ori);
-          tf::Quaternion imu_quat(imu_ori.x(), imu_ori.y(), imu_ori.z(), imu_ori.w());
-          tf::Matrix3x3 imu_m(imu_quat);
-          double imu_roll, imu_pitch, imu_yaw;
-          imu_m.getRPY(imu_roll, imu_pitch, imu_yaw);
-
-          //2.- rotate odom to frame baselink and get the orientation
-          Eigen::Isometry3d odom_bl = odom_ * laser_to_base_;
-          Eigen::Quaterniond odom_ori_bl(odom_bl.rotation());
-          tf::Quaternion odom_bl_quat(odom_ori_bl.x(), odom_ori_bl.y(), odom_ori_bl.z(), odom_ori_bl.w());
-          tf::Matrix3x3 odom_bl_m(odom_bl_quat);
-          double odom_bl_roll, odom_bl_pitch, odom_bl_yaw;
-          odom_bl_m.getRPY(odom_bl_roll, odom_bl_pitch, odom_bl_yaw);
-
-          //ROS_INFO("roll %2.2f:%2.2f, pitch %2.2f:%2.2f, yaw %2.2f:%2.2f", imu_roll, odom_bl_roll, imu_pitch, odom_bl_pitch, imu_yaw, odom_bl_yaw);
-
-          //3.- overwrite roll and pitch
-          odom_bl_m.setRPY(imu_roll, imu_pitch, odom_bl_yaw);
-
-          //4.- fill the eigen structure with the new orientation
-          odom_bl_m.getRotation(odom_bl_quat);
-          odom_ori_bl = Eigen::Quaterniond(odom_bl_quat.w(), odom_bl_quat.x(), odom_bl_quat.y(), odom_bl_quat.z());
-          odom_bl.linear() = odom_ori_bl.toRotationMatrix();
-
-          //5.- rotate odom back to frame laser
-          odom_ = odom_bl * (laser_to_base_.inverse());
-
-        }
-
-        if (params->use_z_){
-
-          Eigen::Vector3d aux_trans = odom_.translation();
-          double external_z;
-          sdata->getLastZ(external_z);
-          odom_.translation() = Eigen::Vector3d(aux_trans.x(), aux_trans.y(), external_z);
-
-        }
-
-        // Updating the initial guess
-        Eigen::Quaterniond q_curr(odom_.rotation());
-        param_q[0] = q_curr.x();
-        param_q[1] = q_curr.y();
-        param_q[2] = q_curr.z();
-        param_q[3] = q_curr.w();
-
-        Eigen::Vector3d t_curr = odom_.translation();
-        param_t[0] = t_curr.x();
-        param_t[1] = t_curr.y();
-        param_t[2] = t_curr.z();
-
-        // Optimize the current pose
-        for (int optim_it = 0; optim_it < 2; optim_it++) {
-          
-          // Define the optimization problem
-          ceres::LossFunction* loss_function = new ceres::HuberLoss(0.2);
-          ceres::LocalParameterization* q_parameterization = new ceres::EigenQuaternionParameterization();
-          ceres::Problem::Options problem_options;
-          ceres::Problem problem(problem_options);
-          problem.AddParameterBlock(param_q, 4, q_parameterization);
-          problem.AddParameterBlock(param_t, 3);
-
-          // Adding constraints
-          addEdgeConstraints(feats, local_map_gen, local_map_rec, odom_, &problem, loss_function);
-
-          // Solving the optimization problem
-          ceres::Solver::Options options;
-          options.linear_solver_type = ceres::DENSE_QR;
-          options.max_num_iterations = 4;
-          options.minimizer_progress_to_stdout = false;
-          options.num_threads = sysconf( _SC_NPROCESSORS_ONLN );          
-          ceres::Solver::Summary summary;
-          ceres::Solve(options, &problem, &summary);
-          
-          // std::cout << summary.BriefReport() << "\n";
-
-          odom_ = Eigen::Isometry3d::Identity();
-          // odom_.linear() = q_curr.toRotationMatrix();
-          // odom_.translation() = t_curr;
-          Eigen::Quaterniond q_new(param_q[3], param_q[0], param_q[1], param_q[2]);
-          odom_.linear() = q_new.toRotationMatrix();
-          odom_.translation() = Eigen::Vector3d(param_t[0], param_t[1], param_t[2]);
-        }        
-
-        // Compute the position of the detectd edges according to the final estimate position
-        PointCloud::Ptr edges_map(new PointCloud);
-        pcl::transformPointCloud(*feats, *edges_map, odom_.matrix());
-
-        // Save edges and update odometry window
-        lmap_manager.addPointCloud(edges_map);
-
         auto end_t = Clock::now();
 
-        double now_secs = ros::Time::now().toSec();
-        mean_in_freq_ -= in_freqs_[num_freqs_];
-        in_freqs_[num_freqs_] = (1.0/(feat_header.stamp.toSec() - last_in_time_secs_))/5.0;
-        mean_in_freq_ += in_freqs_[num_freqs_];
-        last_in_time_secs_ = feat_header.stamp.toSec();
+        Eigen::Isometry3d pred_odom = odom_ * (prev_odom_.inverse() * odom_);
+        prev_odom_ = odom_;
 
-        mean_out_freq_ -= out_freqs_[num_freqs_];
-        out_freqs_[num_freqs_] = (1.0/(now_secs - last_out_time_secs_))/5.0;
-        mean_out_freq_ += out_freqs_[num_freqs_];
-        last_out_time_secs_ = now_secs;
+        // Getting the last MAV status
+        uint8_t status = 0;
+        sdata->getLastMAVStatus(status);        
 
-        num_freqs_ ++;
-        num_freqs_ = num_freqs_ % 5;
+        if (!params->check_mav_status || status != 1) { // Drone is not on the ground
 
-        ROS_DEBUG("Output frequency: %2.2f", mean_out_freq_);
-        if (mean_out_freq_ < mean_in_freq_ * 0.8) {
-          ROS_WARN("Output frequency too low: %2.2f (in: %2.2f)", mean_out_freq_, mean_in_freq_);
+          // Computing local map
+          PointCloud::Ptr local_map_rec(new PointCloud);
+          PointCloud::Ptr local_map_gen(new PointCloud);
+          computeLocalMap(local_map_gen, local_map_rec);
+        
+          // Predict the current pose
+          //Eigen::Isometry3d pred_odom = odom_ * (prev_odom_.inverse() * odom_);
+          //prev_odom_ = odom_;
+          odom_ = pred_odom;
+
+          if (params->use_imu_){
+
+            // 1.- get roll and pitch from IMU (frame baselink)
+            Eigen::Quaterniond imu_ori = Eigen::Quaterniond::Identity();
+            sdata->getLastIMUOri(imu_ori);
+            tf::Quaternion imu_quat(imu_ori.x(), imu_ori.y(), imu_ori.z(), imu_ori.w());
+            tf::Matrix3x3 imu_m(imu_quat);
+            double imu_roll, imu_pitch, imu_yaw;
+            imu_m.getRPY(imu_roll, imu_pitch, imu_yaw);
+
+            //2.- rotate odom to frame baselink and get the orientation
+            Eigen::Isometry3d odom_bl = odom_ * laser_to_base_;
+            Eigen::Quaterniond odom_ori_bl(odom_bl.rotation());
+            tf::Quaternion odom_bl_quat(odom_ori_bl.x(), odom_ori_bl.y(), odom_ori_bl.z(), odom_ori_bl.w());
+            tf::Matrix3x3 odom_bl_m(odom_bl_quat);
+            double odom_bl_roll, odom_bl_pitch, odom_bl_yaw;
+            odom_bl_m.getRPY(odom_bl_roll, odom_bl_pitch, odom_bl_yaw);
+
+            //ROS_INFO("roll %2.2f:%2.2f, pitch %2.2f:%2.2f, yaw %2.2f:%2.2f", imu_roll, odom_bl_roll, imu_pitch, odom_bl_pitch, imu_yaw, odom_bl_yaw);
+
+            //3.- overwrite roll and pitch
+            odom_bl_m.setRPY(imu_roll, imu_pitch, odom_bl_yaw);
+
+            //4.- fill the eigen structure with the new orientation
+            odom_bl_m.getRotation(odom_bl_quat);
+            odom_ori_bl = Eigen::Quaterniond(odom_bl_quat.w(), odom_bl_quat.x(), odom_bl_quat.y(), odom_bl_quat.z());
+            odom_bl.linear() = odom_ori_bl.toRotationMatrix();
+
+            //5.- rotate odom back to frame laser
+            odom_ = odom_bl * (laser_to_base_.inverse());
+
+          }
+
+          if (params->use_z_){
+
+            Eigen::Vector3d aux_trans = odom_.translation();
+            double external_z;
+            sdata->getLastZ(external_z);
+            odom_.translation() = Eigen::Vector3d(aux_trans.x(), aux_trans.y(), external_z);
+
+          }
+
+          // Updating the initial guess
+          Eigen::Quaterniond q_curr(odom_.rotation());
+          param_q[0] = q_curr.x();
+          param_q[1] = q_curr.y();
+          param_q[2] = q_curr.z();
+          param_q[3] = q_curr.w();
+
+          Eigen::Vector3d t_curr = odom_.translation();
+          param_t[0] = t_curr.x();
+          param_t[1] = t_curr.y();
+          param_t[2] = t_curr.z();
+
+          // Optimize the current pose
+          for (int optim_it = 0; optim_it < 2; optim_it++) {
+            
+            // Define the optimization problem
+            ceres::LossFunction* loss_function = new ceres::HuberLoss(0.2);
+            ceres::LocalParameterization* q_parameterization = new ceres::EigenQuaternionParameterization();
+            ceres::Problem::Options problem_options;
+            ceres::Problem problem(problem_options);
+            problem.AddParameterBlock(param_q, 4, q_parameterization);
+            problem.AddParameterBlock(param_t, 3);
+
+            // Adding constraints
+            addEdgeConstraints(feats, local_map_gen, local_map_rec, odom_, &problem, loss_function);
+
+            // Solving the optimization problem
+            ceres::Solver::Options options;
+            options.linear_solver_type = ceres::DENSE_QR;
+            options.max_num_iterations = 4;
+            options.minimizer_progress_to_stdout = false;
+            options.num_threads = sysconf( _SC_NPROCESSORS_ONLN );          
+            ceres::Solver::Summary summary;
+            ceres::Solve(options, &problem, &summary);
+            
+            // std::cout << summary.BriefReport() << "\n";
+
+            odom_ = Eigen::Isometry3d::Identity();
+            // odom_.linear() = q_curr.toRotationMatrix();
+            // odom_.translation() = t_curr;
+            Eigen::Quaterniond q_new(param_q[3], param_q[0], param_q[1], param_q[2]);
+            odom_.linear() = q_new.toRotationMatrix();
+            odom_.translation() = Eigen::Vector3d(param_t[0], param_t[1], param_t[2]);
+          }        
+
+          // Compute the position of the detectd edges according to the final estimate position
+          PointCloud::Ptr edges_map(new PointCloud);
+          pcl::transformPointCloud(*feats, *edges_map, odom_.matrix());
+
+          // Save edges and update odometry window
+          lmap_manager.addPointCloud(edges_map);
+
+          end_t = Clock::now();
+
+          double now_secs = ros::Time::now().toSec();
+          mean_in_freq_ -= in_freqs_[num_freqs_];
+          in_freqs_[num_freqs_] = (1.0/(feat_header.stamp.toSec() - last_in_time_secs_))/5.0;
+          mean_in_freq_ += in_freqs_[num_freqs_];
+          last_in_time_secs_ = feat_header.stamp.toSec();
+
+          mean_out_freq_ -= out_freqs_[num_freqs_];
+          out_freqs_[num_freqs_] = (1.0/(now_secs - last_out_time_secs_))/5.0;
+          mean_out_freq_ += out_freqs_[num_freqs_];
+          last_out_time_secs_ = now_secs;
+
+          num_freqs_ ++;
+          num_freqs_ = num_freqs_ % 5;
+
+          ROS_DEBUG("Output frequency: %2.2f", mean_out_freq_);
+          if (mean_out_freq_ < mean_in_freq_ * 0.8) {
+            ROS_WARN("Output frequency too low: %2.2f (in: %2.2f)", mean_out_freq_, mean_in_freq_);
+          }
+        } else {
+          end_t = Clock::now();
         }
 
         // Register stats

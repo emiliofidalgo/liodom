@@ -47,6 +47,7 @@ class Params {
     bool use_z_;
     bool mapping_;
     bool publish_tf_;
+    bool check_mav_status;
 
     // Methods
     static Params* getInstance();

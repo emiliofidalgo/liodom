@@ -107,6 +107,10 @@ void Params::readParams(const ros::NodeHandle& nh) {
   // Publish TF
   nh.param("publish_tf", publish_tf_, true);
   ROS_INFO("Publish TF: %s", publish_tf_ ? "Yes" : "No");
+
+  // Check MAV status
+  nh.param("check_mav_status", check_mav_status, true);
+  ROS_INFO("Check MAV Status: %s", check_mav_status ? "Yes" : "No");
 }
 
 }  // namespace liodom
