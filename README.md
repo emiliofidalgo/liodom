@@ -2,7 +2,9 @@
 
 LiODOM is an open source C++ library for LiDAR-Only pose estimation and map building. It is based on minimizing a loss function derived from a set of weighted edge-to-line correspondences with a local map. The (unoptimized) global map is represented by a fast and efficient hash-based grid structure that speeds up searches and updates. The local map is obtained from the global map according to the current position of the vehicle.
 
-Note that LiODOM is research code. The authors are not responsible for any errors it may contain. **Use it at your own risk!**
+Note that LiODOM is research code. The authors are not responsible for any errors it may contain. 
+
+**USE IT AT YOUR OWN RISK!**
 
 # Conditions of use
 
@@ -14,9 +16,9 @@ The details of the algorithm are explained in the following publication:
 
 **LiODOM: Adaptive Local Mapping for Robust LiDAR-Only Odometry**<br/>
 Emilio Garcia-Fidalgo, Joan P. Company-Corcoles, Francisco Bonnin-Pascual and Alberto Ortiz<br/>
-Submitted to IEEE RA-L, under review<br/>
+Robotics and Autonomous Systems, in press<br/>
 
-A preprinted version can be found [here](https://arxiv.org/abs/2111.03393). If you use this code, please cite:
+A preprint version can be found [here](https://arxiv.org/abs/2111.03393). If you use this code, please cite:
 ```
 @misc{Garcia-Fidalgo2021liodom,
       title={{LiODOM: Adaptive Local Mapping for Robust LiDAR-Only Odometry}}, 
@@ -47,6 +49,13 @@ A preprinted version can be found [here](https://arxiv.org/abs/2111.03393). If y
 # Usage
 
 For an example of use, see the launch file `launch/liodom.launch`.
+
+Depending on the computer on which LiODOM is running, there are three critical parameters that can affect its performance:
+- `scan_regions`: The number of regions in which each horizontal scan is divided.
+- `edges_per_region`: The number of edges to detect on each region.
+- `prev_frames`: The number of previous frames to be maintained in the local map.
+
+Reducing the values of these parameters may speed up LiODOM, sacrificing accuracy. Adjust them to your needs!
 
 # Contact
 
