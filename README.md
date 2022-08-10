@@ -12,21 +12,23 @@ LiODOM is distributed under the terms of the [GPL3 License](http://github.com/em
 
 # Related publication
 
-The details of the algorithm are explained in the following publication:
+The details of the algorithm are explained in the following [publication](https://www.sciencedirect.com/science/article/pii/S0921889022001324):
 
 **LiODOM: Adaptive Local Mapping for Robust LiDAR-Only Odometry**<br/>
 Emilio Garcia-Fidalgo, Joan P. Company-Corcoles, Francisco Bonnin-Pascual and Alberto Ortiz<br/>
-Robotics and Autonomous Systems, in press<br/>
+Robotics and Autonomous Systems 156, 104226, 2022<br/>
 
-A preprint version can be found [here](https://arxiv.org/abs/2111.03393). If you use this code, please cite:
+If you use this code, please cite as:
 ```
-@misc{Garcia-Fidalgo2021liodom,
-      title={{LiODOM: Adaptive Local Mapping for Robust LiDAR-Only Odometry}}, 
-      author={Emilio Garcia-Fidalgo and Joan P. Company-Corcoles and Francisco Bonnin-Pascual and Alberto Ortiz},
-      year={2021},
-      eprint={2111.03393},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO}
+@article{Garcia-Fidalgo2022,
+	title = {{LiODOM: Adaptive Local Mapping for Robust LiDAR-Only Odometry}},
+	journal = {Robotics and Autonomous Systems},
+	volume = {156},
+	pages = {104226},
+	year = {2022},
+	issn = {0921-8890},
+	doi = {https://doi.org/10.1016/j.robot.2022.104226},
+	author = {Emilio Garcia-Fidalgo and Joan P. Company-Corcoles and Francisco Bonnin-Pascual and Alberto Ortiz},
 }
 ```
 
