@@ -69,13 +69,14 @@ class FeatureExtractor {
   private:
     // ROS variables
     ros::NodeHandle nh_;    
+    ros::Publisher pc_edges_pub_;
 
     // Variables
     bool picked_[400000];           
     SharedData* sdata;
     Stats* stats;
     Params* params;
-    int ncores_;
+    int ncores_;    
 
     bool isValidPoint(const double x, const double y, const double z, double* dist);
     void splitPointCloud(const PointCloud::Ptr& pc_in, std::vector<PointCloud::Ptr>& scans);

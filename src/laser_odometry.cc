@@ -90,7 +90,6 @@ LaserOdometer::LaserOdometer(const ros::NodeHandle& nh) :
   last_out_time_secs_ = last_in_time_secs_;
 
   // Publishers
-  pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>("odom", 10);
   twist_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("twist", 10);
 }
@@ -133,6 +132,8 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
           stats->addLaserOdometryTime(start_t, end_t);
           stats->stopFrame(end_t);          
         }
+
+        publishOdom(feat_header, odom_);
 
       } else {
 
@@ -261,67 +262,8 @@ void LaserOdometer::operator()(std::atomic<bool>& running) {
           stats->stopFrame(end_t);
         }
 
-        // Transform to base_link frame before publication
-        Eigen::Isometry3d odom_base_link = odom_ * laser_to_base_;
-        Eigen::Quaterniond q_current(odom_base_link.rotation());
-        Eigen::Vector3d t_current = odom_base_link.translation();
-
-        // Publishing odometry
-        nav_msgs::Odometry laser_odom_msg;
-        laser_odom_msg.header.frame_id = params->fixed_frame_;
-        laser_odom_msg.child_frame_id = params->base_frame_;
-        laser_odom_msg.header.stamp = feat_header.stamp;
-        //Filling pose
-        laser_odom_msg.pose.pose.orientation.x = q_current.x();
-        laser_odom_msg.pose.pose.orientation.y = q_current.y();
-        laser_odom_msg.pose.pose.orientation.z = q_current.z();
-        laser_odom_msg.pose.pose.orientation.w = q_current.w();
-        laser_odom_msg.pose.pose.position.x = t_current.x();
-        laser_odom_msg.pose.pose.position.y = t_current.y();
-        laser_odom_msg.pose.pose.position.z = t_current.z();
-        //Filling twist
-        double delta_time = feat_header.stamp.toSec() - prev_stamp_;
-        Eigen::Isometry3d delta_odom = ((prev_odom_ * laser_to_base_).inverse() * odom_base_link);
-        Eigen::Vector3d t_delta = delta_odom.translation();
-        laser_odom_msg.twist.twist.linear.x = t_delta.x() / delta_time;
-        laser_odom_msg.twist.twist.linear.y = t_delta.y() / delta_time;
-        laser_odom_msg.twist.twist.linear.z = t_delta.z() / delta_time;
-        Eigen::Quaterniond q_delta(delta_odom.rotation());
-        // we use tf because euler angles in Eigen present singularity problems
-        tf::Quaternion quat(q_delta.x(), q_delta.y(), q_delta.z(), q_delta.w());
-        tf::Matrix3x3 m(quat);
-        double roll, pitch, yaw;
-        m.getRPY(roll, pitch, yaw);
-        laser_odom_msg.twist.twist.angular.x = roll / delta_time;
-        laser_odom_msg.twist.twist.angular.y = pitch / delta_time;
-        laser_odom_msg.twist.twist.angular.z = yaw / delta_time;
+        publishOdom(feat_header, odom_);
         prev_stamp_ = feat_header.stamp.toSec();
-        odom_pub_.publish(laser_odom_msg);
-
-        // Publishing twist
-        geometry_msgs::TwistStamped twist_msg;
-        twist_msg.header.frame_id = params->base_frame_;
-        twist_msg.header.stamp = feat_header.stamp;
-        twist_msg.twist = laser_odom_msg.twist.twist;
-        twist_pub_.publish(twist_msg);
-
-        // Publishing edges
-        // Publishing edges if there is someone listening
-        if (pc_edges_pub_.getNumSubscribers() > 0) {
-          sensor_msgs::PointCloud2 edges_msg;
-          pcl::toROSMsg(*feats, edges_msg);
-          edges_msg.header = feat_header;
-          pc_edges_pub_.publish(edges_msg);
-        }
-
-        //Publishing TF
-        if (params->publish_tf_) {
-          tf::Transform transform;
-          transform.setOrigin(tf::Vector3(t_current.x(), t_current.y(), t_current.z()));
-          tf::Quaternion q(q_current.x(), q_current.y(), q_current.z(), q_current.w());
-          transform.setRotation(q);
-          tf_broadcaster_.sendTransform(tf::StampedTransform(transform, feat_header.stamp, params->fixed_frame_, params->base_frame_));
-        }
       }
     } 
 
@@ -451,6 +393,59 @@ bool LaserOdometer::getBaseToLaserTf (const std::string& frame_id) {
   laser_to_base_.linear() = q_aux.toRotationMatrix();
 
   return true;
+}
+
+void LaserOdometer::publishOdom(const std_msgs::Header& header, const Eigen::Isometry3d& pose) {
+  // Publishing odometry
+  nav_msgs::Odometry laser_odom_msg;
+  laser_odom_msg.header.frame_id = params->fixed_frame_;
+  laser_odom_msg.child_frame_id = params->base_frame_;
+  laser_odom_msg.header.stamp = header.stamp;
+  // Transform to base_link frame before publication
+  Eigen::Isometry3d odom_base_link = pose * laser_to_base_;
+  Eigen::Quaterniond q_current(odom_base_link.rotation());
+  Eigen::Vector3d t_current = odom_base_link.translation();
+  //Filling pose
+  laser_odom_msg.pose.pose.orientation.x = q_current.x();
+  laser_odom_msg.pose.pose.orientation.y = q_current.y();
+  laser_odom_msg.pose.pose.orientation.z = q_current.z();
+  laser_odom_msg.pose.pose.orientation.w = q_current.w();
+  laser_odom_msg.pose.pose.position.x = t_current.x();
+  laser_odom_msg.pose.pose.position.y = t_current.y();
+  laser_odom_msg.pose.pose.position.z = t_current.z();
+  //Filling twist
+  double delta_time = header.stamp.toSec() - prev_stamp_;
+  Eigen::Isometry3d delta_odom = ((prev_odom_ * laser_to_base_).inverse() * odom_base_link);
+  Eigen::Vector3d t_delta = delta_odom.translation();
+  laser_odom_msg.twist.twist.linear.x = t_delta.x() / delta_time;
+  laser_odom_msg.twist.twist.linear.y = t_delta.y() / delta_time;
+  laser_odom_msg.twist.twist.linear.z = t_delta.z() / delta_time;
+  Eigen::Quaterniond q_delta(delta_odom.rotation());
+  // we use tf because euler angles in Eigen present singularity problems
+  tf::Quaternion quat(q_delta.x(), q_delta.y(), q_delta.z(), q_delta.w());
+  tf::Matrix3x3 m(quat);
+  double roll, pitch, yaw;
+  m.getRPY(roll, pitch, yaw);
+  laser_odom_msg.twist.twist.angular.x = roll / delta_time;
+  laser_odom_msg.twist.twist.angular.y = pitch / delta_time;
+  laser_odom_msg.twist.twist.angular.z = yaw / delta_time;
+  odom_pub_.publish(laser_odom_msg);
+
+  // Publishing twist
+  geometry_msgs::TwistStamped twist_msg;
+  twist_msg.header.frame_id = params->base_frame_;
+  twist_msg.header.stamp = header.stamp;
+  twist_msg.twist = laser_odom_msg.twist.twist;
+  twist_pub_.publish(twist_msg);
+
+  //Publishing TF
+  if (params->publish_tf_) {
+    tf::Transform transform;
+    transform.setOrigin(tf::Vector3(t_current.x(), t_current.y(), t_current.z()));
+    tf::Quaternion q(q_current.x(), q_current.y(), q_current.z(), q_current.w());
+    transform.setRotation(q);
+    tf_broadcaster_.sendTransform(tf::StampedTransform(transform, header.stamp, params->fixed_frame_, params->base_frame_));
+  }
 }
 
 }  // namespace liodom

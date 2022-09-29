@@ -32,6 +32,8 @@ FeatureExtractor::FeatureExtractor(const ros::NodeHandle& nh) :
     if (max_ncores > 1) {
       ncores_ = max_ncores;
     }    
+
+    pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
 }
 
 FeatureExtractor::~FeatureExtractor() {  
@@ -65,6 +67,12 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
         stats->addNumOfFeats(pc_edges->points.size());
       }
 
+      // Publishing detected edges
+      sensor_msgs::PointCloud2 edges_msg;
+      pcl::toROSMsg(*pc_edges, edges_msg);
+      edges_msg.header = pc_header;
+      pc_edges_pub_.publish(edges_msg);
+      
       // Send extracted features for laser odometry
       sdata->pushFeatures(pc_edges, pc_header);      
     }
