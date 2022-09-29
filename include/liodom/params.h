@@ -44,6 +44,7 @@ class Params {
     std::string base_frame_;
     std::string laser_frame_;
     bool use_imu_;
+    bool filter_local_map_;
     bool mapping_;
     bool publish_tf_;
 

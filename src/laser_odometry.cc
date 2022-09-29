@@ -283,7 +283,7 @@ void LaserOdometer::computeLocalMap(PointCloud::Ptr& local_map_gen, PointCloud::
   // ROS_DEBUG("Total points: %lu", total_points->size());
 
   PointCloud::Ptr gen_local_map_(new PointCloud);
-  if (nframes == params->local_map_size_ && !params->mapping_) {
+  if (params->filter_local_map_ && nframes == params->local_map_size_ && !params->mapping_) {
     // Voxelize the points
     pcl::VoxelGrid<Point> voxel_filter;
     // voxel_filter.setLeafSize(0.15, 0.15, 0.15);
@@ -305,17 +305,14 @@ void LaserOdometer::addEdgeConstraints(const PointCloud::Ptr& edges,
                         ceres::LossFunction* loss) {
   // Translate edges
   PointCloud::Ptr edges_map(new PointCloud);
-  pcl::transformPointCloud(*edges, *edges_map, pose.matrix());  
-
-  PointCloud::Ptr local_map = local_map_rec;  
-  *local_map += *local_map_gen;
-
-  pcl::VoxelGrid<Point> voxel_filter;
-  voxel_filter.setLeafSize(0.4, 0.4, 0.4);
-    // voxel_filter.setLeafSize(0.4, 0.4, 0.4);
-  voxel_filter.setInputCloud(local_map);
-  voxel_filter.filter(*local_map);
+  pcl::transformPointCloud(*edges, *edges_map, pose.matrix());
   
+  PointCloud::Ptr local_map(new PointCloud);
+  *local_map += *local_map_gen;
+  if (params->mapping_) {
+    *local_map += *local_map_rec;
+  }
+
   // Trying to match against the received local map
   int correct_matches = 0;
   pcl::KdTreeFLANN<Point>::Ptr tree(new pcl::KdTreeFLANN<Point>);

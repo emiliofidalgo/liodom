@@ -96,6 +96,10 @@ void Params::readParams(const ros::NodeHandle& nh) {
   nh.param("use_imu", use_imu_, false);
   ROS_INFO("Use IMU: %s", use_imu_ ? "Yes" : "No");
 
+  // Filter local map
+  nh.param("filter_local_map", filter_local_map_, false);
+  ROS_INFO("Filter Local Map: %s", filter_local_map_ ? "Yes" : "No");
+
   // Mapping
   nh.param("mapping", mapping_, false);
   ROS_INFO("Mapping: %s", mapping_ ? "Yes" : "No");
