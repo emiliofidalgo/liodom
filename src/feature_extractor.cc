@@ -21,7 +21,7 @@
 
 namespace liodom {
 
-FeatureExtractor::FeatureExtractor(const ros::NodeHandle& nh) :
+FeatureExtractor::FeatureExtractor(const rclcpp::Node::SharedPtr& nh) :
   nh_(nh),
   sdata(SharedData::getInstance()),
   stats(Stats::getInstance()),
@@ -33,7 +33,7 @@ FeatureExtractor::FeatureExtractor(const ros::NodeHandle& nh) :
       ncores_ = max_ncores;
     }    
 
-    pc_edges_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("edges", 10);
+    pc_edges_pub_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("edges", 10);
 }
 
 FeatureExtractor::~FeatureExtractor() {  
@@ -44,7 +44,7 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
   while(running) {
 
     PointCloud::Ptr pc_curr;
-    std_msgs::Header pc_header;
+    std_msgs::msg::Header pc_header;
     
     if (sdata->popPointCloud(pc_curr, pc_header)) {      
 
@@ -59,19 +59,20 @@ void FeatureExtractor::operator()(std::atomic<bool>& running) {
       extractFeatures(scans, pc_edges);
       auto end_t = Clock::now();
 
-      ROS_DEBUG("Feature extraction: %lu edges", pc_edges->points.size());
-
+      RCLCPP_DEBUG(nh_->get_logger(), "Feature extraction: %lu edges", pc_edges->points.size());
+      
       // Register stats
       if (params->save_results_) {
         stats->addFeatureExtractionTime(start_t, end_t);
         stats->addNumOfFeats(pc_edges->points.size());
       }
 
-      // Publishing detected edges
-      sensor_msgs::PointCloud2 edges_msg;
+      // Publish extracted edges by a ROS topic
+      sensor_msgs::msg::PointCloud2 edges_msg;
       pcl::toROSMsg(*pc_edges, edges_msg);
       edges_msg.header = pc_header;
-      pc_edges_pub_.publish(edges_msg);
+      // Publish the edges
+      pc_edges_pub_->publish(edges_msg);
       
       // Send extracted features for laser odometry
       sdata->pushFeatures(pc_edges, pc_header);      
@@ -147,7 +148,7 @@ void FeatureExtractor::splitPointCloud(const PointCloud::Ptr& pc_in, std::vector
           continue;
         }                      
       } else {
-        ROS_ERROR_ONCE("Invalid scan lines: %i", params->scan_lines_);
+        RCLCPP_ERROR_ONCE(nh_->get_logger(), "Invalid scan lines: %i", params->scan_lines_);      
       }
 
       // Adding the point to the corresponding scan
@@ -174,7 +175,7 @@ void FeatureExtractor::splitPointCloud(const PointCloud::Ptr& pc_in, std::vector
       }
     }
   } else {
-    ROS_ERROR_ONCE("Incorrect Lidar type");
+    RCLCPP_ERROR_ONCE(nh_->get_logger(), "Incorrect Lidar type");
   }
 }
 

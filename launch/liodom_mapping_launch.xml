@@ -1,0 +1,22 @@
+<launch>
+  
+  <arg name="viz" default="false" />
+
+  <node pkg="liodom"
+        exec="liodom_mapping"
+        name="liodom_mapper"
+        output="screen"
+        respawn="false">
+
+    <param name="voxel_xysize" value="20.0" />
+    <param name="voxel_zsize" value="25.0" />
+    <param name="resolution" value="0.4" />
+    <param name="cells_xy" value="2" />
+    <param name="cells_z" value="1" />    
+    <param name="fixed_frame" value="world" />
+    <param name="base_frame" value="base_link" />
+    
+    <remap from="points" to="/liodom/edges" />
+  </node>
+
+</launch>

@@ -34,79 +34,130 @@ Params* Params::getInstance() {
   return pinstance_;
 }
 
-void Params::readParams(const ros::NodeHandle& nh) {
-  // Reading parameters
+void Params::declareParams(const rclcpp::Node::SharedPtr& nh) {
   // Minimum range in meters
-  nh.param("min_range", min_range_, 3.0);
-  ROS_INFO("Minimum range: %.2f", min_range_);
+  nh->declare_parameter("min_range", 0.1);
 
   // Maximum range in meters
-  nh.param("max_range", max_range_, 75.0);
-  ROS_INFO("Maximum range: %.2f", max_range_);
+  nh->declare_parameter("max_range", 75.0);
 
   // Lidar model: 0 for Velodyne, 1 for Ouster
-  nh.param("lidar_type", lidar_type_, 0);
-  ROS_INFO("Lidar type: %i", lidar_type_);
+  nh->declare_parameter("lidar_type", 0);
 
   // Horizontal scan lines
-  nh.param("scan_lines", scan_lines_, 64);
-  ROS_INFO("Scan lines: %i", scan_lines_);
+  nh->declare_parameter("scan_lines", 64);
 
   // Scan regions
-  nh.param("scan_regions", scan_regions_, 8);
-  ROS_INFO("Scan regions: %i", scan_regions_);
+  nh->declare_parameter("scan_regions", 8);
 
   // Edges per region
-  nh.param("edges_per_region", edges_per_region_, 10);
-  ROS_INFO("Edges per region: %i", edges_per_region_);
+  nh->declare_parameter("edges_per_region", 10);
+
+  // Save results
+  nh->declare_parameter("save_results", false);
+
+  // Results directory
+  nh->declare_parameter("save_results_dir", "~/");
+
+  // Fixed frame
+  nh->declare_parameter("fixed_frame", "odom");
+
+  // Base frame
+  nh->declare_parameter("base_frame", "base_link");
+
+  // Laser frame
+  nh->declare_parameter("laser_frame", "");
+
+  // Previous frames
+  nh->declare_parameter("prev_frames", 5);
+
+  // Use IMU
+  nh->declare_parameter("use_imu", false);
+
+  // Filter local map
+  nh->declare_parameter("filter_local_map", false);
+
+  // Mapping
+  nh->declare_parameter("mapping", false);
+
+  // Publish TF
+  nh->declare_parameter("publish_tf", true);
+}
+
+
+void Params::readParams(const rclcpp::Node::SharedPtr& nh) {
+  // Reading parameters
+  // Minimum range in meters
+  min_range_ = nh->get_parameter("min_range").as_double();
+  RCLCPP_INFO(nh->get_logger(), "Minimum range: %.2f", min_range_);
+
+  // Maximum range in meters
+  max_range_ = nh->get_parameter("max_range").as_double();
+  RCLCPP_INFO(nh->get_logger(), "Maximum range: %.2f", max_range_);
+
+  // Lidar model: 0 for Velodyne, 1 for Ouster
+  lidar_type_ = nh->get_parameter("lidar_type").as_int();
+  RCLCPP_INFO(nh->get_logger(), "Lidar type: %i", lidar_type_);
+
+  // Horizontal scan lines
+  scan_lines_ = nh->get_parameter("scan_lines").as_int();
+  RCLCPP_INFO(nh->get_logger(), "Scan lines: %i", scan_lines_);
+
+  // Scan regions
+  scan_regions_ = nh->get_parameter("scan_regions").as_int();
+  RCLCPP_INFO(nh->get_logger(), "Scan regions: %i", scan_regions_);
+
+  // Edges per region
+  edges_per_region_ = nh->get_parameter("edges_per_region").as_int();
+  RCLCPP_INFO(nh->get_logger(), "Edges per region: %i", edges_per_region_);
 
   min_points_per_scan_ = scan_regions_ * edges_per_region_ + 10;
 
   // Save results
-  nh.param("save_results", save_results_, false);
-  ROS_INFO("Save results: %s", save_results_ ? "Yes" : "No");
+  save_results_ = nh->get_parameter("save_results").as_bool();
+  RCLCPP_INFO(nh->get_logger(), "Save results: %s", save_results_ ? "Yes" : "No");
 
   // Results directory
-  nh.param<std::string>("save_results_dir", results_dir_, "~/");
-  ROS_INFO("Results directory: %s", results_dir_.c_str());
+  results_dir_ = nh->get_parameter("save_results_dir").as_string();
+  RCLCPP_INFO(nh->get_logger(), "Results directory: %s", results_dir_.c_str());
 
   // Fixed frame
-  nh.param<std::string>("fixed_frame", fixed_frame_, "odom");
-  ROS_INFO("Fixed frame: %s", fixed_frame_.c_str());
+  fixed_frame_ = nh->get_parameter("fixed_frame").as_string();
+  RCLCPP_INFO(nh->get_logger(), "Fixed frame: %s", fixed_frame_.c_str());
 
   // Base frame
-  nh.param<std::string>("base_frame", base_frame_, "base_link");
-  ROS_INFO("Base frame: %s", base_frame_.c_str());
+  base_frame_ = nh->get_parameter("base_frame").as_string();
+  RCLCPP_INFO(nh->get_logger(), "Base frame: %s", base_frame_.c_str());
 
   // Laser frame
-  nh.param<std::string>("laser_frame", laser_frame_, "");
+  laser_frame_ = nh->get_parameter("laser_frame").as_string();
   if (laser_frame_ == ""){
-    ROS_INFO("Using laser frame from header");
+    RCLCPP_INFO(nh->get_logger(), "Using laser frame from header");
   }else{
-    ROS_INFO("Laser frame: %s", laser_frame_.c_str());
+    RCLCPP_INFO(nh->get_logger(), "Laser frame: %s", laser_frame_.c_str());
   }
 
   // Number of previous frames to create a local map
   int pframes = 5;
-  nh.param("prev_frames", pframes, 5);
-  ROS_INFO("Sliding window size: %i", pframes);
+  pframes = nh->get_parameter("prev_frames").as_int();
+  RCLCPP_INFO(nh->get_logger(), "Sliding window size: %i", pframes);
   local_map_size_ = (size_t)pframes;
 
   // Use IMU
-  nh.param("use_imu", use_imu_, false);
-  ROS_INFO("Use IMU: %s", use_imu_ ? "Yes" : "No");
+  use_imu_ = nh->get_parameter("use_imu").as_bool();
+  RCLCPP_INFO(nh->get_logger(), "Use IMU: %s", use_imu_ ? "Yes" : "No");
 
   // Filter local map
-  nh.param("filter_local_map", filter_local_map_, false);
-  ROS_INFO("Filter Local Map: %s", filter_local_map_ ? "Yes" : "No");
+  filter_local_map_ = nh->get_parameter("filter_local_map").as_bool();
+  RCLCPP_INFO(nh->get_logger(), "Filter local map: %s", filter_local_map_ ? "Yes" : "No");
 
   // Mapping
-  nh.param("mapping", mapping_, false);
-  ROS_INFO("Mapping: %s", mapping_ ? "Yes" : "No");
+  mapping_ = nh->get_parameter("mapping").as_bool();
+  RCLCPP_INFO(nh->get_logger(), "Mapping: %s", mapping_ ? "Yes" : "No");
 
   // Publish TF
-  nh.param("publish_tf", publish_tf_, true);
-  ROS_INFO("Publish TF: %s", publish_tf_ ? "Yes" : "No");
+  publish_tf_ = nh->get_parameter("publish_tf").as_bool();
+  RCLCPP_INFO(nh->get_logger(), "Publish TF: %s", publish_tf_ ? "Yes" : "No");
 }
 
 }  // namespace liodom

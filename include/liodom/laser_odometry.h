@@ -31,12 +31,14 @@
 #include <Eigen/Geometry>
 
 // ROS
-#include <ros/ros.h>
-#include <nav_msgs/Odometry.h>
-#include <tf/transform_datatypes.h>
-#include <tf/transform_listener.h>
-#include <tf/transform_broadcaster.h>
-#include <geometry_msgs/TwistStamped.h>
+#include <rclcpp/rclcpp.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2/exceptions.h>
+#include <tf2_ros/buffer.h>
 
 // PCL
 #include <pcl/common/transforms.h>
@@ -78,17 +80,19 @@ class LocalMapManager {
 // Laser Odometry
 class LaserOdometer {
  public:
-  explicit LaserOdometer(const ros::NodeHandle& nh);
+  explicit LaserOdometer(const rclcpp::Node::SharedPtr& nh);
   virtual ~LaserOdometer();
 
   void operator()(std::atomic<bool>& running);
 
  private:
   // ROS variables
-  ros::NodeHandle nh_;
-  ros::Publisher odom_pub_;
-  ros::Publisher twist_pub_;
-  tf::TransformBroadcaster tf_broadcaster_;  
+  rclcpp::Node::SharedPtr nh_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr twist_pub_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
 
   // Variables
   bool init_;
@@ -118,7 +122,7 @@ class LaserOdometer {
                           ceres::Problem* problem,
                           ceres::LossFunction* loss);
   bool getBaseToLaserTf(const std::string& frame_id);
-  void publishOdom(const std_msgs::Header& header, const Eigen::Isometry3d& pose);
+  void publishOdom(const std_msgs::msg::Header& header, const Eigen::Isometry3d& pose);
 };
 
 }  // namespace liodom

@@ -1,7 +1,7 @@
 /*
 * This file is part of liodom.
 *
-* Copyright (C) 2021 Emilio Garcia-Fidalgo <emilio.garcia@uib.es> (University of the Balearic Islands)
+* Copyright (C) 2020 Emilio Garcia-Fidalgo <emilio.garcia@uib.es> (University of the Balearic Islands)
 *
 * liodom is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
 #include <mutex>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 namespace liodom {
 
@@ -53,7 +53,8 @@ class Params {
     Params(Params const&) = delete;
     void operator=(Params const&) = delete;
 
-    void readParams(const ros::NodeHandle& nh);
+    void declareParams(const rclcpp::Node::SharedPtr& nh);
+    void readParams(const rclcpp::Node::SharedPtr& nh);
 
   private:
     // Controlling the singleton

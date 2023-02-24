@@ -1,0 +1,79 @@
+<launch>
+  
+  <arg name="viz" default="false" />
+  <arg name="mapping" default="false" />
+
+  <!-- Liodom -->
+  <node pkg="liodom"
+        exec="liodom_node"
+        name="liodom"
+        namespace="liodom"
+        output="screen"
+        respawn="false">
+
+    <param name="min_range" value="3.0" />
+    <param name="max_range" value="75.0" />
+    <param name="lidar_type" value="0" />
+    <param name="scan_lines" value="64" />
+    <param name="scan_regions" value="8" />
+    <param name="edges_per_region" value="10" />
+    <param name="prev_frames" value="15" />
+    <param name="fixed_frame" value="odom" />
+    <param name="base_frame" value="base_link" />
+    <param name="laser_frame" value="velo_link" />
+    <param name="use_imu" value="false" />
+    <param name="save_results" value="false" />    
+    <param name="save_results_dir" value="/home/emilio/Escritorio/results/liodom/" />
+    <param name="mapping" value="$(var mapping)" />
+    <param name="publish_tf" value="true" />
+    <param name="use_sim_time" value="true"/>
+    
+    <remap from="points" to="/kitti/velo/pointcloud" />
+    <remap from="map" to="/liodom_mapper/map_local" />
+
+  </node>
+
+  <!-- Mapping, if required -->
+  <group if="$(var mapping)">
+    <node pkg="liodom"
+        exec="liodom_mapping"
+        name="liodom_mapper"
+        namespace="liodom_mapper"
+        output="screen"
+        respawn="false">
+
+      <param name="voxel_xysize" value="30.0" />
+      <param name="voxel_zsize" value="35.0" />
+      <param name="resolution" value="0.4" />    
+      <param name="cells_xy" value="3" />
+      <param name="cells_z" value="2" />
+      <param name="fixed_frame" value="world" />
+      <param name="base_frame" value="base_link" />
+      <param name="use_sim_time" value="true"/>
+      
+      <remap from="points" to="/liodom/edges" />
+    
+    </node>
+  </group>
+
+  <node pkg="tf2_ros"
+        exec="static_transform_publisher"
+	      name="world2odom"
+	      args="0 0 0 0 0 0 world odom" >
+        <param name="use_sim_time" value="true"/>
+  </node>
+
+  <node pkg="tf2_ros"
+        exec="static_transform_publisher"
+	      name="baselink2laser"
+	      args="0 0 0 0 0 0 base_link velo_link" >
+        <param name="use_sim_time" value="true"/>
+  </node>
+
+  <group if="$(var viz)">
+    <node exec="rviz2" name="rviz2" pkg="rviz2" args="-d $(find-pkg-share liodom)/rviz/liodom.rviz">
+      <param name="use_sim_time" value="true"/>
+    </node>
+  </group>
+
+</launch>

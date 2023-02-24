@@ -21,9 +21,12 @@
 #include <atomic>
 
 // ROS
-#include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/Imu.h>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+
+// PCL
+#include <pcl_conversions/pcl_conversions.h>
 
 // Liodom
 #include <liodom/defs.h>
@@ -33,18 +36,21 @@
 #include <liodom/shared_data.h>
 #include <liodom/stats.h>
 
+liodom::Params* params;
 liodom::SharedData* sdata;
 liodom::Stats* stats;
-liodom::Params* params;
 
-void lidarClb(const sensor_msgs::PointCloud2ConstPtr& lidar_msg) {
+rclcpp::Node::SharedPtr node = nullptr;
+
+// liDAR Callback
+void lidarClb(const sensor_msgs::msg::PointCloud2::SharedPtr lidar_msg) {
   
   // Converting ROS message to PCL
   liodom::PointCloud::Ptr pc_new(new liodom::PointCloud);
   pcl::fromROSMsg(*lidar_msg, *pc_new);
-  
-  ROS_DEBUG("---");
-  ROS_DEBUG("Initial cloud: %lu points", pc_new->points.size());
+
+  RCLCPP_DEBUG(node->get_logger(), "---");
+  RCLCPP_DEBUG(node->get_logger(), "Initial cloud: %lu points", pc_new->points.size());
   
   if (params->save_results_) {
     auto start = liodom::Clock::now();
@@ -54,7 +60,7 @@ void lidarClb(const sensor_msgs::PointCloud2ConstPtr& lidar_msg) {
   sdata->pushPointCloud(pc_new, lidar_msg->header);
 }
 
-void mapClb(const sensor_msgs::PointCloud2ConstPtr& map_msg) {
+void mapClb(const sensor_msgs::msg::PointCloud2::SharedPtr map_msg) {
   
   // Converting ROS message to PCL
   liodom::PointCloud::Ptr pc_new(new liodom::PointCloud);
@@ -63,7 +69,7 @@ void mapClb(const sensor_msgs::PointCloud2ConstPtr& map_msg) {
   sdata->setLocalMap(pc_new);
 }
 
-void imuClb(const sensor_msgs::ImuConstPtr& imu_msg) {
+void imuClb(const sensor_msgs::msg::Imu::SharedPtr imu_msg) {
 
   Eigen::Quaterniond new_ori(imu_msg->orientation.w, imu_msg->orientation.x, imu_msg->orientation.y, imu_msg->orientation.z);
   sdata->setLastIMUOri(new_ori);
@@ -72,38 +78,40 @@ void imuClb(const sensor_msgs::ImuConstPtr& imu_msg) {
 int main(int argc, char** argv) {
   
   // Initializing node
-  ros::init (argc, argv, "liodom");
-  ros::NodeHandle nh("~");
+  rclcpp::init(argc, argv);
+  node = rclcpp::Node::make_shared("liodom");
 
-  // Reading parameters
+  // Declaring and reading parameters
   params = liodom::Params::getInstance();
-  params->readParams(nh);
+  params->declareParams(node);
+  params->readParams(node);
 
   Eigen::initParallel();
 
-  // Creating threads
-  liodom::FeatureExtractor fext(nh);
-  liodom::LaserOdometer lodom(nh);
+  // // Creating threads
+  liodom::FeatureExtractor fext(node);
+  liodom::LaserOdometer lodom(node);
 
-  // Launching threads
+  // // Launching threads
   std::atomic<bool> running {true};
   std::thread fext_thread(fext, std::ref(running));
   std::thread lodom_thread(lodom, std::ref(running));
 
-  // Shared stuff
+  // // Shared stuff
   sdata = liodom::SharedData::getInstance();
   stats = liodom::Stats::getInstance();
 
   // Subscribers  
-  ros::Subscriber pc_subs_  = nh.subscribe("points", 1, lidarClb);
-  ros::Subscriber map_subs_ = nh.subscribe("map", 1, mapClb);
-  ros::Subscriber imu_subs_;
+  auto pc_subs_ = node->create_subscription<sensor_msgs::msg::PointCloud2>("points", 1, lidarClb);
+  auto map_subs_ = node->create_subscription<sensor_msgs::msg::PointCloud2>("map", 1, mapClb);
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subs_;
   if (params->use_imu_) {
-    imu_subs_ = nh.subscribe("imu", 1, imuClb);
+    imu_subs_ = node->create_subscription<sensor_msgs::msg::Imu>("imu", 1, imuClb);
   }
 
   // Receiving messages
-  ros::spin();
+  rclcpp::spin(node);
+  rclcpp::shutdown();
 
   // Exit gracefully
   running = false;

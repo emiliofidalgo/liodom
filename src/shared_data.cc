@@ -34,14 +34,14 @@ SharedData* SharedData::getInstance() {
   return pinstance_;
 }
 
-void SharedData::pushPointCloud(const PointCloud::Ptr& pc_in, const std_msgs::Header& header) {
+void SharedData::pushPointCloud(const PointCloud::Ptr& pc_in, const std_msgs::msg::Header& header) {
   pc_mutex_.lock();
   pc_buf_.push(pc_in);
   pc_header_.push(header);
   pc_mutex_.unlock();
 }
 
-bool SharedData::popPointCloud(PointCloud::Ptr& pc_out, std_msgs::Header& header) {
+bool SharedData::popPointCloud(PointCloud::Ptr& pc_out, std_msgs::msg::Header& header) {
   bool response = false;
 
   pc_mutex_.lock();
@@ -61,14 +61,14 @@ bool SharedData::popPointCloud(PointCloud::Ptr& pc_out, std_msgs::Header& header
   return response;
 }
 
-void SharedData::pushFeatures(const PointCloud::Ptr& feat_in, std_msgs::Header& header) {
+void SharedData::pushFeatures(const PointCloud::Ptr& feat_in, std_msgs::msg::Header& header) {
   feat_mutex_.lock();
   feat_buf_.push(feat_in);
   feat_header_.push(header);
   feat_mutex_.unlock();
 }
 
-bool SharedData::popFeatures(PointCloud::Ptr& feat_out, std_msgs::Header& header) {
+bool SharedData::popFeatures(PointCloud::Ptr& feat_out, std_msgs::msg::Header& header) {
   bool response = false;
 
   feat_mutex_.lock();

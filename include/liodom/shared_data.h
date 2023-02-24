@@ -23,8 +23,8 @@
 #include <queue>
 #include <mutex>
 
-#include <ros/ros.h>
-#include <std_msgs/Header.h>
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/header.hpp>
 
 #include <pcl/common/io.h>
 
@@ -39,11 +39,11 @@ class SharedData {
     SharedData(SharedData const&) = delete;
     void operator=(SharedData const&) = delete;
 
-    void pushPointCloud(const PointCloud::Ptr& pc_in, const std_msgs::Header& header);
-    bool popPointCloud(PointCloud::Ptr& pc_out, std_msgs::Header& header);
+    void pushPointCloud(const PointCloud::Ptr& pc_in, const std_msgs::msg::Header& header);
+    bool popPointCloud(PointCloud::Ptr& pc_out, std_msgs::msg::Header& header);
 
-    void pushFeatures(const PointCloud::Ptr& feat_in, std_msgs::Header& header);
-    bool popFeatures(PointCloud::Ptr& feat_out, std_msgs::Header& header);
+    void pushFeatures(const PointCloud::Ptr& feat_in, std_msgs::msg::Header& header);
+    bool popFeatures(PointCloud::Ptr& feat_out, std_msgs::msg::Header& header);
 
     void setLocalMap(const PointCloud::Ptr& map_in);
     void getLocalMap(PointCloud::Ptr& map_out);
@@ -59,12 +59,12 @@ class SharedData {
     // PointCloud control
     std::mutex pc_mutex_;
     std::queue<PointCloud::Ptr> pc_buf_;
-    std::queue<std_msgs::Header> pc_header_;
+    std::queue<std_msgs::msg::Header> pc_header_;
 
     // Feature control
     std::mutex feat_mutex_;
     std::queue<PointCloud::Ptr> feat_buf_;
-    std::queue<std_msgs::Header> feat_header_;
+    std::queue<std_msgs::msg::Header> feat_header_;
 
     // Local Map control
     std::mutex map_mutex_;
@@ -72,8 +72,7 @@ class SharedData {
 
     // Last IMU control
     std::mutex imu_mutex_;
-    Eigen::Quaterniond last_IMU_ori_;
-    
+    Eigen::Quaterniond last_IMU_ori_;    
 
   protected:
     SharedData() : local_map_(new PointCloud) {};

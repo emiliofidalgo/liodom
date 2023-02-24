@@ -30,8 +30,8 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 // ROS
-#include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 // Liodom
 #include <liodom/params.h>
@@ -61,15 +61,15 @@ struct SmoothnessItem {
 
 class FeatureExtractor {
   public:  
-    explicit FeatureExtractor(const ros::NodeHandle& nh);
+    explicit FeatureExtractor(const rclcpp::Node::SharedPtr& nh);
     virtual ~FeatureExtractor();
 
     void operator()(std::atomic<bool>& running);
 
   private:
     // ROS variables
-    ros::NodeHandle nh_;    
-    ros::Publisher pc_edges_pub_;
+    rclcpp::Node::SharedPtr nh_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_edges_pub_;
 
     // Variables
     bool picked_[400000];           
