@@ -36,7 +36,7 @@ If you use this code, please cite as:
 
 ## Prerequisites
 - Tested on [Ubuntu 64-bit 20.04](http://ubuntu.com/download/desktop)
-- Tested on [ROS Noetic](http://wiki.ros.org/ROS/Installation)
+- Tested on [ROS2 Foxy](https://docs.ros.org/en/foxy/index.html)
 - [Ceres](http://ceres-solver.org/installation.html)
 - [PCL](http://pointclouds.org/)
 
@@ -45,7 +45,7 @@ If you use this code, please cite as:
   cd ~/your_workspace/src
   git clone https://github.com/emiliofidalgo/liodom.git
   cd ..
-  catkin_make -DCMAKE_BUILD_TYPE=Release
+  colcon build --symlink-install --cmake-args ' -DCMAKE_BUILD_TYPE=Release'
 ```
 
 # Usage
